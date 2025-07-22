@@ -39,7 +39,7 @@ let dailyUsage = {
 
 function getTodayDateString() {
     const today = new Date();
-    return today.toDateString(); // e.g., "Thu Jul 10 2025"
+    return today.toDateString();
 }
 
 function initializeDailyUsage() {
@@ -52,7 +52,7 @@ function initializeDailyUsage() {
             resetAllDailyUsage(); // It's a new day, reset limits
         }
     } else {
-        resetAllDailyUsage(); // First time user or no data
+        resetAllDailyUsage(); 
     }
     console.log('Daily Usage Initialized:', dailyUsage);
 }
@@ -71,16 +71,14 @@ function resetAllDailyUsage() {
     console.log('Daily Usage Reset:', dailyUsage);
 }
 
-// Instead of localStorage, store in Firebase
+
 function updateUsage(feature) {
     const user = auth.currentUser;
     if (user) {
-        // Store in Firebase user document
-        // This would require backend changes
+        
     }
 }
 
-// MODIFIED: This function now returns boolean and doesn't show alert
 function checkUsage(feature, limit, actionName, outputElement = null) {
     if (isPlusUser()) return true; // No limits for Plus
     if (dailyUsage[feature] >= limit) {
@@ -98,7 +96,6 @@ function checkUsage(feature, limit, actionName, outputElement = null) {
 }
 // --- End Daily Usage Limits ---
 
-// Backend communication functions
 async function getAuthToken() {
   const user = auth.currentUser;
   if (!user) {
@@ -210,7 +207,7 @@ async function loadSavedFlashcardsFromBackend() {
     return savedFlashcards;
   } catch (error) {
     console.error('Error loading saved flashcards from backend:', error);
-    // Fallback to localStorage if backend fails
+
     const stored = localStorage.getItem('tutorbotSavedFlashcards');
     if (stored) {
       savedFlashcards = JSON.parse(stored);
@@ -223,7 +220,7 @@ const actionButtons = [
   'askTutorBotBtn', 'voiceInputBtn', 'generateNotesBtn', 'solvePastQuestionBtn',
   'generateQuizBtn', 'generateFlashcardsBtn', 'saveHistoryBtn',
   'prevHistoryBtn', 'nextHistoryBtn', 'submitQuizBtn', 'captureBtn', 'retakeBtn', 'cancelCameraBtn',
-  'saveNotesPdfBtn', 'refreshQuizBtn', 'nextQuizBtn' // Add new buttons here
+  'saveNotesPdfBtn', 'refreshQuizBtn', 'nextQuizBtn' 
 ];
 
 function setButtonsDisabled(disabled) {
@@ -235,17 +232,17 @@ function setButtonsDisabled(disabled) {
     if (stopBtn) {
         stopBtn.style.display = disabled ? 'block' : 'none';
     }
-    // Speech control buttons need separate handling as they depend on speech state
+
     updateSpeechControlButtons();
 }
 
-// --- BEGIN: All remaining app logic from index.html <script> block ---
+
 
 function goToScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (id === 'chatbotScreen') {
-      initializeDailyUsage(); // Only needed for chatbot
+      initializeDailyUsage(); 
   }
 }
 
@@ -330,10 +327,10 @@ function stopProcess() {
     document.getElementById('saveNotesPdfBtn').style.display = 'none';
     document.getElementById('quizControlButtons').style.display = 'none';
     console.log('Process stopped by user.');
-    // alert('Generation stopped.'); // Remove alert
+
 }
 
-// --- NEW/MODIFIED: Image Input & Multimodal API Call ---
+
 
 async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
     outputElement.innerHTML = `<em>${loadingMessage}</em>`;
@@ -344,7 +341,7 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
     const signal = abortController.signal;
 
     try {
-        // Get Firebase ID token for authentication
+       
         const user = auth.currentUser;
         if (!user) {
             outputElement.innerText = "You must be signed in to use TutorBot features.";
@@ -352,7 +349,7 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
         }
         const idToken = await user.getIdToken();
 
-        // API URL that switches between local dev and production
+       
         console.log('Current hostname:', window.location.hostname);
         const API_BASE =
         'https://tutorbot-backend-tut-6999add0d546.herokuapp.com';
@@ -396,7 +393,7 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
 
 async function getResponse() {
   const responseBox = document.getElementById('response');
-  // Check daily usage limit, pass the output element for message display
+
   if (!checkUsage('responses', DAILY_LIMITS.responses, 'TutorBot responses', responseBox)) {
       return;
   }
@@ -416,21 +413,19 @@ async function getResponse() {
       promptText += ` After your detailed explanation, provide a simpler, more concise explanation for easier understanding, clearly labeled "Simplified Version:".`;
   }
 
-  // For text-only input, promptParts is just an array with one text object
+  
   const promptParts = [{ text: promptText }];
   const answer = await callGeminiAPI(promptParts, responseBox, "Thinking deeply for your answer...");
   if (answer) {
-      let cleanAnswer = answer.replace(/\*/g, ''); // Remove all asterisks
+      let cleanAnswer = answer.replace(/\*/g, ''); 
       responseBox.innerText = cleanAnswer;
-      updateSpeechControlButtons(); // Update speech buttons after response is generated
-      updateUsage('responses'); // Increment usage count on successful response
+      updateSpeechControlButtons(); 
+      updateUsage('responses'); 
   }
 }
 
 async function generateFlashcards() {
-  // No specific limit for flashcards in the prompt, so not adding check here.
-  // If you want a limit, add:
-  // if (!checkUsage('flashcards', DAILY_LIMITS.flashcards, 'flashcard generations')) { return; }
+
 
   const question = document.getElementById('question').value.trim();
   const subject = document.getElementById('subject').value;
@@ -448,7 +443,7 @@ async function generateFlashcards() {
   const flashcardContent = await callGeminiAPI(promptParts, flashcardBox, "Crafting your flashcard...");
   if (flashcardContent) {
       flashcardBox.innerHTML = `<strong>Flashcard Generated:</strong><br>${flashcardContent}<br><br><button onclick="saveFlashcard()" class="continue-btn" style="margin-top: 10px;">💾 Save Flashcard</button>`;
-      // updateUsage('flashcards'); // If you add a limit for flashcards
+     
   }
 }
 
@@ -526,7 +521,7 @@ async function generateNotes() {
   }
 }
 
-// New function to save notes as PDF
+
 function saveNotesAsPdf() {
   const notesBox = document.getElementById('notes-box');
   const notesTopic = document.getElementById('notesTopic').value.trim();
@@ -547,13 +542,12 @@ function saveNotesAsPdf() {
   doc.text(`Notes on ${notesTopic} (${subject})`, 10, 20);
   doc.setFontSize(12);
 
-  // Split text into lines that fit the page width
-  const splitText = doc.splitTextToSize(notesContent, 180); // 180mm width
+  const splitText = doc.splitTextToSize(notesContent, 180); 
   doc.text(splitText, 10, 30);
 
-  const filename = `${notesTopic}_Notes_${subject}.pdf`.replace(/[^a-zA-Z0-9_.-]/g, '_'); // Sanitize filename
+  const filename = `${notesTopic}_Notes_${subject}.pdf`.replace(/[^a-zA-Z0-9_.-]/g, '_'); 
   doc.save(filename);
-  // alert(`Notes saved as "${filename}"!`); // Removed alert, as per user's preference for on-page messages
+
 }
 
 async function solvePastQuestion() {
@@ -572,7 +566,7 @@ async function solvePastQuestion() {
       return;
   }
 
-  // Convert image file to base64
+  // Converted image file to base64
   const base64Image = await fileToBase64(selectedImageFile);
   if (!base64Image) {
       solutionBox.innerText = "Failed to process image. Please try again with a different image.";
@@ -595,7 +589,7 @@ async function solvePastQuestion() {
   const solutionContent = await callGeminiAPI(promptParts, solutionBox, "Analyzing image and preparing detailed WAEC solution...");
   if (solutionContent) {
       solutionBox.innerHTML = `<strong>Solution for WAEC Past Question:</strong><br>${solutionContent}`;
-      updateUsage('imageSolutions'); // Increment usage count on successful solution
+      updateUsage('imageSolutions'); 
   }
 }
 
@@ -603,15 +597,15 @@ async function generateQuiz(isNextQuiz = false) {
   const quizBox = document.getElementById('quiz-box');
   const quizControlButtons = document.getElementById('quizControlButtons');
 
-  // ENFORCE LIMITS FOR ALL QUIZ GENERATION
+
   if (isNextQuiz) {
       if (!checkUsage('nextQuiz', DAILY_LIMITS.nextQuiz, '"Next Quiz" clicks', quizBox)) {
           quizControlButtons.style.display = 'none'; // Hide controls if limit reached
           return;
       }
   } else if (!checkUsage('refreshQuiz', DAILY_LIMITS.refreshQuiz, '"Daily Quiz" generations', quizBox)) {
-      // This now covers the main "Daily WAEC Quiz" button as well!
-      quizControlButtons.style.display = 'none'; // Hide controls if limit reached
+      
+      quizControlButtons.style.display = 'none';
       return;
   }
 
@@ -977,11 +971,11 @@ function speakAnswer() {
         updateSpeechControlButtons();
     };
 
-    // Try to speak with error handling
+  
     try {
-        // For mobile, ensure we're in a user interaction context
+       
         if (isMobile) {
-            // Force a small delay for mobile to ensure user interaction
+            // Forced a small delay for mobile to ensure user interaction
             setTimeout(() => {
                 window.speechSynthesis.speak(speechUtterance);
                 updateUsage('readAnswers');
@@ -1024,18 +1018,18 @@ function resumeSpeech() {
     }
     
     if (window.speechSynthesis && window.speechSynthesis.paused) {
-        // Try to resume normally first
+        // Tried to resume normally first
         try {
             window.speechSynthesis.resume();
             console.log('Speech resumed normally');
         } catch (error) {
             console.log('Resume failed, restarting speech');
-            // If resume fails, restart the speech from beginning
+            // If resume failed, restart the speech from beginning
             if (speechText) {
                 window.speechSynthesis.cancel();
                 const newUtterance = new SpeechSynthesisUtterance(speechText);
                 
-                // Apply same settings
+                // Applied same settings
                 if (isMobile) {
                     newUtterance.rate = 0.8;
                     newUtterance.pitch = 1.0;
@@ -1169,24 +1163,24 @@ function captureImage() {
   video.style.display = 'none';
   cameraButtons.style.display = 'none';
 
-  // Get image as Blob for processing and display
+  
   canvas.toBlob(async (blob) => {
-      // Optional: Resize image if it's too large for API limits or performance
-      const resizedBlob = await resizeImage(blob, 1024); // Resize to max width/height of 1024px
+    
+      const resizedBlob = await resizeImage(blob, 1024); 
       selectedImageFile = resizedBlob;
       imagePreview.src = URL.createObjectURL(selectedImageFile);
       imagePreview.style.display = 'block';
       imagePlaceholder.style.display = 'none';
-    // Re-enable file upload
+    
     document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
 });
 }
 
 async function handleFileUpload(event) {
   const solutionBox = document.getElementById('past-question-solution-box');
-  // Check daily usage limit. This counts as one image solution attempt.
+  
   if (!checkUsage('imageSolutions', DAILY_LIMITS.imageSolutions, 'image solutions', solutionBox)) {
-      // Clear the file input if limit is reached to prevent repeated attempts
+     
       document.getElementById('fileUpload').value = '';
       return;
   }
@@ -1199,20 +1193,19 @@ async function handleFileUpload(event) {
   const video = document.getElementById('cameraStream');
   const cameraButtons = document.querySelector('.camera-buttons');
 
-  // If camera is active, stop it
+
   if (mediaStream) {
       mediaStream.getTracks().forEach(track => track.stop());
       mediaStream = null;
   }
   video.style.display = 'none';
   cameraButtons.style.display = 'none';
-  document.getElementById('fileUpload').value = ''; // Clear file input so same file can be reselected
+  document.getElementById('fileUpload').value = ''; 
 
   if (file && file.type.startsWith('image/')) {
       imagePreviewContainer.style.display = 'block';
       imagePlaceholder.style.display = 'none';
 
-      // Optional: Resize image before setting as selectedImageFile
       const resizedBlob = await resizeImage(file, 1024);
       selectedImageFile = resizedBlob;
 
@@ -1274,7 +1267,7 @@ function resizeImage(file, maxWidth) {
                   height = height * (maxWidth / width);
                   width = maxWidth;
               }
-              // Also scale height if it's too big (for very tall images)
+             
               if (height > maxWidth) {
                   width = width * (maxWidth / height);
                   height = maxWidth;
@@ -1303,7 +1296,7 @@ function closeUpgradeModal() {
     document.getElementById('upgradeModal').style.display = 'none';
 }
 
-// Helper: Check if user is Plus (stored in localStorage)
+// Helper: Checking if user is Plus (stored in localStorage)
 function isPlusUser() {
     const paid = localStorage.getItem('tutorbotPlus') === 'true';
     const paidDate = parseInt(localStorage.getItem('tutorbotPlusPaidDate') || '0', 10);
@@ -1319,7 +1312,7 @@ function isPlusUser() {
     return true;
 }
 
-// Call this after successful payment
+// Called this after successful payment
 function grantPlusAccess() {
     localStorage.setItem('tutorbotPlus', 'true');
     localStorage.setItem('tutorbotPlusPaidDate', Date.now().toString()); // Store payment timestamp
@@ -1338,8 +1331,7 @@ function payWithPaystack() {
         return;
     }
     var handler = PaystackPop.setup({
-        key: 'pk_live_1e834a58cf99e6e60271252fde08554e4515b4a4', // Replace with your Paystack public key
-        email: email, // Use stored email directly
+        key: 'pk_live_1e834a58cf99e6e60271252fde08554e4515b4a4',
         amount: 5000,
         currency: "GHS",
         ref: 'TUTORBOT-' + Math.floor((Math.random() * 1000000000) + 1),
@@ -1353,7 +1345,6 @@ function payWithPaystack() {
     handler.openIframe();
 }
 
-// Attach Paystack to the modal button after DOM loads
 document.addEventListener('DOMContentLoaded', function() {
     const payBtn = document.getElementById('paystackUpgradeBtn');
     if (payBtn) payBtn.onclick = payWithPaystack;
@@ -1382,11 +1373,10 @@ function promptRenewPlus() {
   document.getElementById('response').style.display = 'block';
 };
 
-// Add this function for testing
+// Added this function for testing
 function resetDailyLimits() {
     localStorage.removeItem('tutorbotDailyUsage');
     initializeDailyUsage();
     console.log('Daily limits reset!');
 }
 
-// You can call this in browser console: resetDailyLimits()

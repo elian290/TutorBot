@@ -1,4 +1,4 @@
-/* General styles */
+
 * { box-sizing: border-box; }
 body {
   font-family: 'Poppins', sans-serif;
@@ -584,11 +584,10 @@ select option {
 }
 
 .plus-emoji {
-  font-size: 2.5rem; /* Adjust size as needed */
+  font-size: 2.5rem; 
   display: inline-block;
   line-height: 1;
   filter: drop-shadow(0 2px 8px #a78bfa88);
-  /* Optional: subtle bounce animation for flair */
   animation: plus-bounce 1.2s infinite alternate;
 }
 
