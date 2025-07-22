@@ -1325,14 +1325,24 @@ function grantPlusAccess() {
 
 // Paystack payment logic
 function payWithPaystack() {
-    const email = localStorage.getItem('tutorbotUserEmail') || '';
-    if (!email) {
-        alert('No email found. Please sign up again.');
+    console.log('payWithPaystack called');
+    console.log('auth.currentUser:', auth.currentUser);
+    let email = '';
+    if (window.auth && auth.currentUser && auth.currentUser.email) {
+        email = auth.currentUser.email.trim();
+        localStorage.setItem('tutorbotUserEmail', email);
+    } else {
+        email = (localStorage.getItem('tutorbotUserEmail') || '').trim();
+    }
+    console.log('Paystack email:', email);
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        alert('No valid email found. Please sign up again.');
         return;
     }
     var handler = PaystackPop.setup({
         key: 'pk_live_1e834a58cf99e6e60271252fde08554e4515b4a4',
-        amount: 5000,
+        email: email,
+        amount: 5000, 
         currency: "GHS",
         ref: 'TUTORBOT-' + Math.floor((Math.random() * 1000000000) + 1),
         callback: function(response){
@@ -1347,7 +1357,26 @@ function payWithPaystack() {
 
 document.addEventListener('DOMContentLoaded', function() {
     const payBtn = document.getElementById('paystackUpgradeBtn');
-    if (payBtn) payBtn.onclick = payWithPaystack;
+    if (payBtn) {
+        payBtn.onclick = payWithPaystack;
+        payBtn.disabled = true;
+    }
+
+    if (window.auth) {
+        auth.onAuthStateChanged(function(user) {
+            const payBtn = document.getElementById('paystackUpgradeBtn');
+            if (user && user.email) {
+                localStorage.setItem('tutorbotUserEmail', user.email);
+                if (payBtn) {
+                    payBtn.disabled = false;
+                }
+            } else {
+                if (payBtn) {
+                    payBtn.disabled = true;
+                }
+            }
+        });
+    }
 
     // If Plus expired, prompt renewal
     if (!isPlusUser() && (localStorage.getItem('tutorbotPlusPaidDate'))) {
