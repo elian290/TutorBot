@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TutorBot</title>
+  <link rel="icon" href="tutorbot icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="src/firebase-config.js"></script>
+  <script src="script.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<div class="screen active" id="welcomeScreen">
+  <img src="tutorbot icon.png" class="tutor-image" alt="TutorBot Logo" />
+  <h1>Welcome to TutorBot</h1>
+  <h2>Your Ultimate SHS AI Assistant</h2>
+  <div>
+    <button class="continue-btn" onclick="goToScreen('signupScreen')">Continue</button>
+  </div>
+</div>
+
+<div class="screen" id="signupScreen">
+  <div class="container">
+    <h2>Create Your Account</h2>
+    <input type="email" placeholder="Enter your email" id="email" />
+    <input type="password" placeholder="Enter your password" id="password" />
+    <button class="continue-btn" onclick="validateSignup()">Next</button>
+    <button class="continue-btn" style="background:#1e293b; color:#38bdf8; border:2px solid #38bdf8; margin-top:10px;" onclick="goToScreen('loginScreen')">
+      Already have an account? Login
+    </button>
+  </div>
+</div>
+
+<div class="screen" id="loginScreen">
+  <div class="container">
+    <h2>Sign In</h2>
+    <input type="email" placeholder="Enter your email" id="loginEmail" />
+    <input type="password" placeholder="Enter your password" id="loginPassword" />
+    <button class="continue-btn" onclick="loginUser()">Login</button>
+    <button class="continue-btn" style="background:#1e293b; color:#38bdf8; border:2px solid #38bdf8; margin-top:10px;" onclick="goToScreen('signupScreen')">
+      Don't have an account? Sign Up
+    </button>
+    <div id="loginError" style="color:#ef4444; margin-top:10px;"></div>
+  </div>
+</div>
+
+<div class="screen" id="courseScreen">
+  <div class="container">
+    <h2>Select Your Course</h2>
+    <!-- Course Dropdown -->
+    <select id="courseSelect" class="styled-select">
+      <option value="science">Science</option>
+      <option value="business">Business</option>
+      <option value="visualArts">Visual Arts</option>
+      <option value="generalArts">General Arts</option>
+    </select>
+    <button class="continue-btn" onclick="startTutorBot()">Start TutorBot</button>
+  </div>
+</div>
+
+<div class="screen" id="chatbotScreen">
+    
+  <div class="container">
+    <button id="upgradeButton" onclick="showUpgradePrompt()">🌟Upgrade to Plus</button>
+
+    <h1>TutorBot</h1>
+    <p class="sub">Your Ultimate SHS AI Assistant</p>
+
+    <label for="subject">Select Subject</label>
+    <!-- Subject Dropdown -->
+    <select id="subject" class="styled-select"></select>
+
+    <label for="question">Your Question</label>
+    <textarea id="question" placeholder="Type your question here..."></textarea>
+
+
+
+    <div class="toggle-box">
+      <label for="simplify">✨ Simplify Answer</label>
+      <label class="switch">
+        <input type="checkbox" id="simplify">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button id="askTutorBotBtn" onclick="getResponse()">Ask TutorBot</button>
+    <button id="voiceInputBtn" class="microphone-button" onclick="startVoiceInput()">🎤 Voice Input</button>
+
+    <div class="speech-controls">
+      <button id="speakAnswerBtn" class="speak-button" onclick="speakAnswer()">🔊 Read Answer</button>
+      <button id="pauseSpeechBtn" class="pause-button" onclick="pauseSpeech()" style="display:none;">⏸️ Pause</button>
+      <button id="resumeSpeechBtn" class="resume-button" onclick="resumeSpeech()" style="display:none;">▶️ Resume</button>
+    </div>
+
+    <button id="stopGeneratingBtn" class="stop-button" onclick="stopProcess()">🛑 Stop Generating</button>
+
+    <div class="response-box" id="response">
+      Ask a question to see TutorBot's response here...
+    </div>
+
+    <hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;">
+
+    <h2>Advanced Tools</h2>
+    <div class="advanced-tools-section">
+        <div>
+            <label for="notesTopic">Generate Notes on Topic:</label>
+            <input type="text" id="notesTopic" placeholder="e.g., Photosynthesis, Supply & Demand" />
+            <button id="generateNotesBtn" onclick="generateNotes()">📝 Generate Notes</button>
+            <div class="notes-section" id="notes-box" style="display:none;"></div>
+            <button id="saveNotesPdfBtn" class="continue-btn" onclick="saveNotesAsPdf()" style="display:none; margin-top: 10px;">💾 Save Notes as PDF</button>
+        </div>
+
+        <div>
+            <label>Solve WAEC Past Question (Image Input):</label>
+            <div class="image-input-controls">
+                <button onclick="openCamera()">📸 Camera</button>
+                <input type="file" id="fileUpload" accept="image/*" style="display: none;" onchange="handleFileUpload(event)">
+                <button onclick="document.getElementById('fileUpload').click()">📁 File Upload</button>
+            </div>
+
+            <div id="imagePreviewContainer" style="display:none;">
+                <p class="placeholder-text" id="imagePlaceholder">No image selected. Use camera or file upload.</p>
+                <img id="imagePreview" src="#" alt="Image Preview" style="display:none;">
+                <video id="cameraStream" autoplay muted style="display:none;"></video>
+                <canvas id="cameraCanvas" style="display:none;"></canvas>
+                <div class="camera-buttons" style="display:none;">
+                    <button id="captureBtn" onclick="captureImage()">Capture Photo</button>
+                    <button id="retakeBtn" onclick="openCamera()">Retake</button>
+                    <button id="cancelCameraBtn" onclick="cancelCamera()">Cancel</button>
+                </div>
+                <button class="clear-image-btn" id="clearImageBtn" onclick="clearImage()" style="display:none;">Clear Image</button>
+            </div>
+
+            <button id="solvePastQuestionBtn" onclick="solvePastQuestion()">🧠 Get Solution (from Image)</button>
+            <div class="past-question-solver-box" id="past-question-solution-box" style="display:none;"></div>
+        </div>
+
+        <div>
+            <label for="quizTopic">Daily WAEC Quiz Topic (Optional):</label>
+            <input type="text" id="quizTopic" placeholder="e.g., Photosynthesis, Economic Systems" />
+            <button id="generateQuizBtn" onclick="generateQuiz()">🧪 Daily WAEC Quiz</button>
+            <div class="quiz-section" id="quiz-box" style="display:none;"></div>
+            <div class="quiz-control-buttons" id="quizControlButtons" style="display:none;">
+                <button id="refreshQuizBtn" onclick="generateQuiz()">🔄 Refresh Quiz</button>
+                <button id="nextQuizBtn" onclick="generateQuiz(true)">▶️ Next Quiz</button>
+            </div>
+        </div>
+
+        <div>
+            <button id="generateFlashcardsBtn" onclick="generateFlashcards()">📄 Generate Flashcard</button>
+            <div class="flashcards" id="flashcard-box" style="display:none;"></div>
+        </div>
+    </div> <hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;">
+
+    <h2>Your Saved Answers</h2>
+    <button id="saveHistoryBtn" onclick="saveHistory()">💾 Save This Answer</button>
+    <div class="history-nav-buttons" id="historyNavButtons" style="display:none;">
+      <button id="prevHistoryBtn" onclick="navigateHistory(-1)" disabled>&lt; Previous</button>
+      <button id="nextHistoryBtn" onclick="navigateHistory(1)" disabled>Next &gt;</button>
+    </div>
+    <div class="history-box" id="history-box" style="display:none;"></div>
+
+    <h2>Your Saved Flashcards</h2>
+    <button id="loadFlashcardsBtn" onclick="loadSavedFlashcards()">📚 Load Saved Flashcards</button>
+    <div class="flashcard-nav-buttons" id="flashcardNavButtons" style="display:none;">
+      <button id="prevFlashcardBtn" onclick="navigateFlashcards(-1)" disabled>&lt; Previous</button>
+      <button id="nextFlashcardBtn" onclick="navigateFlashcards(1)" disabled>Next &gt;</button>
+    </div>
+    <div class="flashcard-history-box" id="flashcard-history-box" style="display:none;"></div>
+  </div>
+      <div style="text-align:center; margin-top:32px; color:#94a3b8; font-size:0.95em;">
+      &copy; 2025 THE AI DEV
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Upgrade Modal -->
+<div id="upgradeModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.7); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#fff; color:#222; border-radius:18px; max-width:350px; width:90vw; padding:32px 20px 24px 20px; text-align:center; position:relative;">
+    <h2 style="color:#a78bfa;">TutorBot Plus</h2>
+    <ul style="text-align:left; margin:18px 0 18px 0; color:#222; font-size:1em; line-height:1.7;">
+      <li>Unlimited AI answers</li>
+      <li>Unlimited notes & quizzes</li>
+      <li>Unlimited image solutions</li>
+      <li>Priority support</li>
+      <li>No daily limits</li>
+    </ul>
+    <div style="font-size:1.2em; font-weight:bold; margin-bottom:18px; color:#10b981;">GH₵50 monthly</div>
+    <button id="paystackUpgradeBtn" class="continue-btn" style="width:100%; margin-bottom:10px;">Upgrade Now</button>
+    <button onclick="closeUpgradeModal()" class="exit-btn" style="width:100%;">Cancel</button>
+  </div>
+</div>
+
+</body>
+</html>

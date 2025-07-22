@@ -1,0 +1,37 @@
+ let subjects = [];
+    if (course === 'science') {
+      subjects = ['Core Maths', 'Physics', 'Chemistry', 'Biology', 'Elective Maths', 'Social Studies', 'Integrated Science', 'English Language'];
+    } else if (course === 'business') {
+      subjects = ['Economics', 'Financial Accounting','Business Management', 'Elective Maths', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
+    } else if (course === 'visualArts') {
+      subjects = ['Leatherwork', 'Elective Maths', 'Sculpture','Basketry', 'Graphic Design', 'Picture Making', 'Ceramics', 'Textiles'];
+    } else if (course === 'generalArts') {
+      subjects = ['Elective Maths', 'Core Maths', 'Integrated Science', 'Social Studies', 'English Language', 'Geography','Government', 'History', 'Literature in English','Christian Religious Studies', 'French', 'Economics'];
+    }
+
+AIzaSyBeyc8ZPmLvvWv_LRptVwklybKaNvAHEzo
+
+
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDvUac4ETO-gUy0NZRgysdNmOzviTSTmOg",
+  authDomain: "tutorbot-1.firebaseapp.com",
+  projectId: "tutorbot-1",
+  storageBucket: "tutorbot-1.firebasestorage.app",
+  messagingSenderId: "429605110036",
+  appId: "1:429605110036:web:b86d87b50c227ace32c201",
+  measurementId: "G-M87TH5HENN"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
+npm install firebase
