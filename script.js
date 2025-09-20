@@ -15,7 +15,7 @@ let speechPausedTime = 0; // Track when speech was paused
 let selectedImageFile = null; // Stores the image file/blob to send to Gemini
 
 // Backend API URL
-const BACKEND_URL = 'https://tutorbot-backend-tut-6999add0d546.herokuapp.com';
+const BACKEND_URL = 'https://tutorbot-backend.onrender.com';
 
 // --- Daily Usage Limits (Free Plan) ---
 const DAILY_LIMITS = {
@@ -351,8 +351,7 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
 
        
         console.log('Current hostname:', window.location.hostname);
-        const API_BASE =
-        'https://tutorbot-backend-tut-6999add0d546.herokuapp.com';
+        const API_BASE = BACKEND_URL;
         console.log('Using API_BASE:', API_BASE);
 
         const response = await fetch(`${API_BASE}/api/ai/gemini`, {
