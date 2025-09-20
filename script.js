@@ -246,16 +246,125 @@ function goToScreen(id) {
   }
 }
 
-function validateSignup() {
-     const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value.trim();
-  auth.createUserWithEmailAndPassword(email, password)
-    .then(() => {
-      localStorage.setItem('tutorbotUserEmail', auth.currentUser.email); // Store email after signup
-      goToScreen('courseScreen');
-    })
-    .catch(error => alert(error.message));
+// Email verification variables
+let verificationEmail = '';
+let verificationCode = '';
 
+async function sendVerificationCode() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  
+  if (!email || !password) {
+    alert('Please fill in both email and password');
+    return;
+  }
+  
+  if (password.length < 6) {
+    alert('Password must be at least 6 characters');
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/email-verification/send-verification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      verificationEmail = email;
+      // Show verification code input
+      showVerificationStep();
+      alert('Verification code sent to your email! Please check your inbox and spam folder.');
+    } else {
+      alert(data.error || 'Failed to send verification code');
+    }
+  } catch (error) {
+    console.error('Error sending verification code:', error);
+    alert('Failed to send verification code. Please try again.');
+  }
+}
+
+function showVerificationStep() {
+  // Hide signup form
+  document.querySelector('.signup-form').style.display = 'none';
+  
+  // Show verification form
+  const verificationHTML = `
+    <div class="verification-form">
+      <h2>Verify Your Email</h2>
+      <p>We've sent a 6-digit verification code to <strong>${verificationEmail}</strong></p>
+      <input type="text" id="verificationCode" placeholder="Enter 6-digit code" maxlength="6">
+      <button onclick="verifyAndSignup()" class="continue-btn">Verify & Sign Up</button>
+      <button onclick="goBackToSignup()" class="back-btn">Back to Signup</button>
+    </div>
+  `;
+  
+  document.querySelector('.screen').innerHTML += verificationHTML;
+}
+
+function goBackToSignup() {
+  // Remove verification form
+  document.querySelector('.verification-form').remove();
+  
+  // Show signup form
+  document.querySelector('.signup-form').style.display = 'block';
+  
+  verificationEmail = '';
+}
+
+async function verifyAndSignup() {
+  const code = document.getElementById('verificationCode').value.trim();
+  
+  if (!code || code.length !== 6) {
+    alert('Please enter a valid 6-digit verification code');
+    return;
+  }
+  
+  try {
+    // Verify the code
+    const verifyResponse = await fetch(`${BACKEND_URL}/api/email-verification/verify-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        email: verificationEmail, 
+        code: code 
+      })
+    });
+    
+    const verifyData = await verifyResponse.json();
+    
+    if (verifyResponse.ok) {
+      // Code verified, proceed with Firebase signup
+      const password = document.getElementById('password').value.trim();
+      
+      auth.createUserWithEmailAndPassword(verificationEmail, password)
+        .then(() => {
+          localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
+          goToScreen('courseScreen');
+        })
+        .catch(error => {
+          alert('Signup failed: ' + error.message);
+          goBackToSignup();
+        });
+    } else {
+      alert(verifyData.error || 'Invalid verification code');
+    }
+  } catch (error) {
+    console.error('Error verifying code:', error);
+    alert('Failed to verify code. Please try again.');
+  }
+}
+
+function validateSignup() {
+  // This function is now replaced by sendVerificationCode
+  sendVerificationCode();
 }
 async function loginUser() {
     const email = document.getElementById('loginEmail').value.trim();
