@@ -283,7 +283,6 @@ async function sendVerificationCode() {
       verificationEmail = email;
       // Show verification code input
       showVerificationStep();
-      alert('Verification code sent to your email! Please check your inbox and spam folder.');
     } else {
       console.error('Error response:', data);
       alert(data.error || 'Failed to send verification code');
@@ -359,6 +358,17 @@ async function verifyAndSignup() {
     if (verifyResponse.ok) {
       // Code verified, proceed with Firebase signup
       const password = document.getElementById('password').value.trim();
+      
+      // Show loading message
+      const verificationForm = document.querySelector('.verification-form');
+      if (verificationForm) {
+        verificationForm.innerHTML = `
+          <div style="text-align: center; padding: 20px;">
+            <h3>Creating your account...</h3>
+            <p>Please wait while we set up your TutorBot account.</p>
+          </div>
+        `;
+      }
       
       auth.createUserWithEmailAndPassword(verificationEmail, password)
         .then(() => {
