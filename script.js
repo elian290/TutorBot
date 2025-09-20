@@ -249,6 +249,7 @@ function goToScreen(id) {
 // Email verification variables
 let verificationEmail = '';
 let verificationCode = '';
+let storedPassword = '';
 
 async function sendVerificationCode() {
   const email = document.getElementById('email').value.trim();
@@ -281,6 +282,7 @@ async function sendVerificationCode() {
     
     if (response.ok) {
       verificationEmail = email;
+      storedPassword = password; // Store the password
       // Show verification code input
       showVerificationStep();
     } else {
@@ -336,7 +338,9 @@ function goBackToSignup() {
     signupContainer.style.display = 'block';
   }
   
+  // Clear stored data
   verificationEmail = '';
+  storedPassword = '';
 }
 
 async function verifyAndSignup() {
@@ -364,7 +368,8 @@ async function verifyAndSignup() {
     
     if (verifyResponse.ok) {
       // Code verified, proceed with Firebase signup
-      const password = document.getElementById('password').value.trim();
+      // Use the stored password instead of trying to get it from the hidden form
+      const password = storedPassword;
       
       // Show loading message
       const verificationForm = document.querySelector('.verification-form');
