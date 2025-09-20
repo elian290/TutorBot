@@ -273,7 +273,11 @@ async function sendVerificationCode() {
       body: JSON.stringify({ email })
     });
     
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+    
     const data = await response.json();
+    console.log('Response data:', data);
     
     if (response.ok) {
       verificationEmail = email;
@@ -281,6 +285,7 @@ async function sendVerificationCode() {
       showVerificationStep();
       alert('Verification code sent to your email! Please check your inbox and spam folder.');
     } else {
+      console.error('Error response:', data);
       alert(data.error || 'Failed to send verification code');
     }
   } catch (error) {
