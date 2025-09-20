@@ -294,26 +294,33 @@ async function sendVerificationCode() {
 }
 
 function showVerificationStep() {
-  // Find the signup form and hide it
-  const signupForm = document.querySelector('.signup-form') || document.querySelector('form');
-  if (signupForm) {
-    signupForm.style.display = 'none';
+  // Hide the signup form container
+  const signupContainer = document.querySelector('#signupScreen .container');
+  if (signupContainer) {
+    signupContainer.style.display = 'none';
   }
   
-  // Show verification form
+  // Create and show verification form
   const verificationHTML = `
-    <div class="verification-form" style="max-width: 400px; margin: 0 auto; padding: 20px;">
+    <div class="verification-form" style="max-width: 400px; margin: 0 auto; padding: 20px; text-align: center;">
       <h2>Verify Your Email</h2>
-      <p>We've sent a 6-digit verification code to <strong>${verificationEmail}</strong></p>
-      <input type="text" id="verificationCode" placeholder="Enter 6-digit code" maxlength="6" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px;">
-      <button onclick="verifyAndSignup()" class="continue-btn" style="width: 100%; padding: 10px; margin: 10px 0; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer;">Verify & Sign Up</button>
-      <button onclick="goBackToSignup()" class="back-btn" style="width: 100%; padding: 10px; margin: 10px 0; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer;">Back to Signup</button>
+      <p>We've sent a 6-digit verification code to:</p>
+      <p style="font-weight: bold; color: #2563eb;">${verificationEmail}</p>
+      <p style="font-size: 14px; color: #666;">Please check your inbox and spam folder</p>
+      
+      <input type="text" id="verificationCode" placeholder="Enter 6-digit code" maxlength="6" style="width: 100%; padding: 15px; margin: 20px 0; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 18px; text-align: center; letter-spacing: 3px;">
+      
+      <button onclick="verifyAndSignup()" class="continue-btn" style="width: 100%; padding: 15px; margin: 10px 0; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">Verify & Sign Up</button>
+      
+      <button onclick="goBackToSignup()" class="back-btn" style="width: 100%; padding: 15px; margin: 10px 0; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">← Back to Signup</button>
     </div>
   `;
   
-  // Find the current screen and add verification form
-  const currentScreen = document.querySelector('.screen') || document.querySelector('.container') || document.body;
-  currentScreen.innerHTML += verificationHTML;
+  // Add verification form to the signup screen
+  const signupScreen = document.getElementById('signupScreen');
+  if (signupScreen) {
+    signupScreen.innerHTML += verificationHTML;
+  }
 }
 
 function goBackToSignup() {
@@ -323,10 +330,10 @@ function goBackToSignup() {
     verificationForm.remove();
   }
   
-  // Show signup form
-  const signupForm = document.querySelector('.signup-form') || document.querySelector('form');
-  if (signupForm) {
-    signupForm.style.display = 'block';
+  // Show signup form container
+  const signupContainer = document.querySelector('#signupScreen .container');
+  if (signupContainer) {
+    signupContainer.style.display = 'block';
   }
   
   verificationEmail = '';
