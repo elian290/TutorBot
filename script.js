@@ -295,29 +295,40 @@ async function sendVerificationCode() {
 }
 
 function showVerificationStep() {
-  // Hide signup form
-  document.querySelector('.signup-form').style.display = 'none';
+  // Find the signup form and hide it
+  const signupForm = document.querySelector('.signup-form') || document.querySelector('form');
+  if (signupForm) {
+    signupForm.style.display = 'none';
+  }
   
   // Show verification form
   const verificationHTML = `
-    <div class="verification-form">
+    <div class="verification-form" style="max-width: 400px; margin: 0 auto; padding: 20px;">
       <h2>Verify Your Email</h2>
       <p>We've sent a 6-digit verification code to <strong>${verificationEmail}</strong></p>
-      <input type="text" id="verificationCode" placeholder="Enter 6-digit code" maxlength="6">
-      <button onclick="verifyAndSignup()" class="continue-btn">Verify & Sign Up</button>
-      <button onclick="goBackToSignup()" class="back-btn">Back to Signup</button>
+      <input type="text" id="verificationCode" placeholder="Enter 6-digit code" maxlength="6" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px;">
+      <button onclick="verifyAndSignup()" class="continue-btn" style="width: 100%; padding: 10px; margin: 10px 0; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer;">Verify & Sign Up</button>
+      <button onclick="goBackToSignup()" class="back-btn" style="width: 100%; padding: 10px; margin: 10px 0; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer;">Back to Signup</button>
     </div>
   `;
   
-  document.querySelector('.screen').innerHTML += verificationHTML;
+  // Find the current screen and add verification form
+  const currentScreen = document.querySelector('.screen') || document.querySelector('.container') || document.body;
+  currentScreen.innerHTML += verificationHTML;
 }
 
 function goBackToSignup() {
   // Remove verification form
-  document.querySelector('.verification-form').remove();
+  const verificationForm = document.querySelector('.verification-form');
+  if (verificationForm) {
+    verificationForm.remove();
+  }
   
   // Show signup form
-  document.querySelector('.signup-form').style.display = 'block';
+  const signupForm = document.querySelector('.signup-form') || document.querySelector('form');
+  if (signupForm) {
+    signupForm.style.display = 'block';
+  }
   
   verificationEmail = '';
 }
