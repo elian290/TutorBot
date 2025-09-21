@@ -1362,11 +1362,7 @@ async function openCamera() {
       video.srcObject = mediaStream;
       video.play();
       document.getElementById('imagePreviewContainer').style.display = 'block';
-      setButtonsDisabled(true); // Disable all buttons
-      // Manually enable camera controls
-      document.getElementById('captureBtn').disabled = false;
-      document.getElementById('retakeBtn').disabled = false;
-      document.getElementById('cancelCameraBtn').disabled = false;
+      // Don't disable all buttons - just manage camera-specific buttons
       // Keep file upload disabled
       document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = true; // Disable file upload button
   } catch (err) {
@@ -1417,7 +1413,10 @@ function captureImage() {
       clearImageBtn.style.display = 'block';
     
       // Re-enable file upload button
-    document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
+      document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
+      
+      // Re-enable camera button
+      document.querySelector('.image-input-controls button:nth-of-type(1)').disabled = false;
       
       console.log('Image captured and processed successfully');
     } catch (error) {
@@ -1442,8 +1441,8 @@ function cancelCamera() {
   cameraButtons.style.display = 'none';
   imagePlaceholder.style.display = 'block';
   
-  // Re-enable file upload button
-  document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
+  // Re-enable all buttons
+  setButtonsDisabled(false);
 }
 
 async function handleFileUpload(event) {
