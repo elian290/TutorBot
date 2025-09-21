@@ -534,8 +534,15 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
     abortController = new AbortController();
     const signal = abortController.signal;
 
+    // Set a timeout for the request (2 minutes for image processing, 1 minute for text)
+    const isImageRequest = promptParts.some(part => part.inlineData);
+    const timeoutMs = isImageRequest ? 120000 : 60000; // 2 min for images, 1 min for text
+    
+    const timeoutId = setTimeout(() => {
+        abortController.abort();
+    }, timeoutMs);
+
     try {
-       
         const user = auth.currentUser;
         if (!user) {
             outputElement.innerText = "You must be signed in to use TutorBot features.";
@@ -543,10 +550,10 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
         }
         const idToken = await user.getIdToken();
 
-       
         console.log('Current hostname:', window.location.hostname);
         const API_BASE = BACKEND_URL;
         console.log('Using API_BASE:', API_BASE);
+        console.log('Request timeout:', timeoutMs + 'ms');
 
         const response = await fetch(`${API_BASE}/api/ai/gemini`, {
             method: 'POST',
@@ -558,13 +565,31 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
             signal: signal
         });
 
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
-            const errorData = await response.json();
+            let errorData;
+            try {
+                errorData = await response.json();
+            } catch (jsonError) {
+                // If response is not JSON (e.g., HTML error page), get text
+                const errorText = await response.text();
+                console.error('Non-JSON error response:', errorText);
+                outputElement.innerText = `Server Error (${response.status}): The server returned an error page. Please try again later.`;
+                return null;
+            }
             outputElement.innerText = `Error: ${errorData.error || 'An unknown API error occurred.'}`;
             return null;
         }
 
-        const data = await response.json();
+        let data;
+        try {
+            data = await response.json();
+        } catch (jsonError) {
+            console.error('Invalid JSON response:', await response.text());
+            outputElement.innerText = 'Server returned invalid response. Please try again.';
+            return null;
+        }
         if (data.text) {
             return data.text;
         } else {
@@ -572,8 +597,13 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
             return null;
         }
     } catch (error) {
+        clearTimeout(timeoutId);
         if (error.name === 'AbortError') {
-            outputElement.innerText = "Generation cancelled by user.";
+            if (abortController.signal.aborted) {
+                outputElement.innerText = "Request timed out. Please try again with a smaller image or check your connection.";
+            } else {
+                outputElement.innerText = "Generation cancelled by user.";
+            }
         } else {
             outputElement.innerText = `An unexpected error occurred: ${error.message}. Please try again.`;
         }
@@ -749,13 +779,13 @@ function saveNotesAsPdf() {
 
 async function solvePastQuestion() {
   const solutionBox = document.getElementById('past-question-solution-box');
+  
   // Check daily usage limit
-  if (!checkUsage('imageSolutions', DAILY_LIMITS.imageSolutions, 'image solutions', solutionBox)) {
+  if (!checkUsage('imageSolutions', PLAN_LIMITS[getUserPlan()].imageSolutions, 'image solutions', solutionBox)) {
       return;
   }
 
   const subject = document.getElementById('subject').value;
-
 
   if (!selectedImageFile) {
       solutionBox.innerText = "Please capture or upload an image of the WAEC past question first.";
@@ -763,30 +793,45 @@ async function solvePastQuestion() {
       return;
   }
 
-  // Converted image file to base64
-  const base64Image = await fileToBase64(selectedImageFile);
-  if (!base64Image) {
-      solutionBox.innerText = "Failed to process image. Please try again with a different image.";
-      return;
-  }
+  try {
+    // Convert image file to base64
+    const base64Image = await fileToBase64(selectedImageFile);
+    if (!base64Image) {
+        solutionBox.innerText = "Failed to process image. Please try again with a different image.";
+        solutionBox.style.display = 'block';
+        return;
+    }
 
-  const promptText = `You are a highly experienced SHS teacher in Ghana specializing in ${subject}. Analyze the image provided, which contains a WAEC past question. Provide a detailed, step-by-step solution or explanation for this question. Your answer should be comprehensive, accurate, and structured in a way that matches typical WAEC mark schemes, clearly showing working or reasoning, suitable for a Ghanaian SHS student.`;
+    console.log('Image processed, sending to API...');
 
-  // Multimodal prompt: array of parts including text and image
-  const promptParts = [
-      { text: promptText },
-      {
-          inlineData: {
-              mimeType: selectedImageFile.type,
-              data: base64Image.split(',')[1] // Get base64 data after 'data:image/jpeg;base64,'
-          }
-      }
-  ];
+    const promptText = `You are a highly experienced SHS teacher in Ghana specializing in ${subject}. Analyze the image provided, which contains a WAEC past question. Provide a detailed, step-by-step solution or explanation for this question. Your answer should be comprehensive, accurate, and structured in a way that matches typical WAEC mark schemes, clearly showing working or reasoning, suitable for a Ghanaian SHS student.`;
 
-  const solutionContent = await callGeminiAPI(promptParts, solutionBox, "Analyzing image and preparing detailed WAEC solution...");
-  if (solutionContent) {
-      solutionBox.innerHTML = `<strong>Solution for WAEC Past Question:</strong><br>${solutionContent}`;
-      updateUsage('imageSolutions'); 
+    // Multimodal prompt: array of parts including text and image
+    const promptParts = [
+        { text: promptText },
+        {
+            inlineData: {
+                mimeType: selectedImageFile.type,
+                data: base64Image.split(',')[1] // Get base64 data after 'data:image/jpeg;base64,'
+            }
+        }
+    ];
+
+    console.log('Sending multimodal request to API...');
+    const solutionContent = await callGeminiAPI(promptParts, solutionBox, "Analyzing image and preparing detailed WAEC solution...");
+    
+    if (solutionContent) {
+        solutionBox.innerHTML = `<strong>Solution for WAEC Past Question:</strong><br>${solutionContent}`;
+        updateUsage('imageSolutions');
+        console.log('Solution received successfully');
+    } else {
+        solutionBox.innerText = "Failed to generate solution. Please try again.";
+        solutionBox.style.display = 'block';
+    }
+  } catch (error) {
+    console.error('Error in solvePastQuestion:', error);
+    solutionBox.innerText = `Error processing image: ${error.message}. Please try again.`;
+    solutionBox.style.display = 'block';
   }
 }
 
@@ -1362,15 +1407,42 @@ function captureImage() {
 
   
   canvas.toBlob(async (blob) => {
-    
+    try {
       const resizedBlob = await resizeImage(blob, 1024); 
       selectedImageFile = resizedBlob;
       imagePreview.src = URL.createObjectURL(selectedImageFile);
       imagePreview.style.display = 'block';
       imagePlaceholder.style.display = 'none';
-    
-    document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
-});
+      clearImageBtn.style.display = 'block';
+      
+      // Re-enable file upload button
+      document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
+      
+      console.log('Image captured and processed successfully');
+    } catch (error) {
+      console.error('Error processing captured image:', error);
+      alert('Error processing image. Please try again.');
+    }
+  }, 'image/jpeg', 0.8);
+}
+
+function cancelCamera() {
+  const video = document.getElementById('cameraStream');
+  const imagePlaceholder = document.getElementById('imagePlaceholder');
+  const cameraButtons = document.querySelector('.camera-buttons');
+  
+  // Stop camera stream
+  if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      mediaStream = null;
+  }
+  
+  video.style.display = 'none';
+  cameraButtons.style.display = 'none';
+  imagePlaceholder.style.display = 'block';
+  
+  // Re-enable file upload button
+  document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
 }
 
 async function handleFileUpload(event) {
@@ -1780,5 +1852,42 @@ function testPricingSystem() {
     console.log('Is Premium User:', isPlusUser());
     
     console.log('=== Test Complete ===');
+}
+
+// Test function for API connection
+async function testAPIConnection() {
+    console.log('=== Testing API Connection ===');
+    
+    try {
+        const user = auth.currentUser;
+        if (!user) {
+            console.log('❌ No authenticated user');
+            return;
+        }
+        
+        const idToken = await user.getIdToken();
+        console.log('✅ User authenticated');
+        
+        const response = await fetch(`${BACKEND_URL}/api/ai/test`, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + idToken
+            }
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ API test successful:', data);
+        } else {
+            const errorText = await response.text();
+            console.log('❌ API test failed:', errorText);
+        }
+    } catch (error) {
+        console.log('❌ API test error:', error);
+    }
+    
+    console.log('=== API Test Complete ===');
 }
 
