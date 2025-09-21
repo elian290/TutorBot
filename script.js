@@ -1535,11 +1535,44 @@ function selectPlan(planType) {
         return;
     }
     
+    // Add visual feedback
+    highlightSelectedPlan(planType);
+    
     // Store selected plan for payment
     localStorage.setItem('selectedPlan', planType);
     
     // Proceed with payment
     payWithPaystack(planType, planPrices[planType], planNames[planType]);
+}
+
+// Visual feedback for plan selection
+function highlightSelectedPlan(planType) {
+    // Remove selected class from all cards
+    document.querySelectorAll('.pricing-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // Add selected class to clicked card
+    const selectedCard = document.querySelector(`[data-plan="${planType}"]`);
+    if (selectedCard) {
+        selectedCard.classList.add('selected');
+        
+        // Update button text to show selection
+        const button = selectedCard.querySelector('.plan-select-btn');
+        if (button) {
+            const originalText = button.textContent;
+            button.textContent = 'Selected ✓';
+            button.style.background = '#10b981';
+            
+            // Reset after 2 seconds
+            setTimeout(() => {
+                button.textContent = originalText;
+                if (planType === 'basic') button.style.background = '#6b7280';
+                else if (planType === 'standard') button.style.background = '#3b82f6';
+                else if (planType === 'premium') button.style.background = '#a78bfa';
+            }, 2000);
+        }
+    }
 }
 
 // Called this after successful payment
@@ -1652,7 +1685,41 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', () => {
   initializeDailyUsage(); // Load daily usage immediately
   updateSpeechControlButtons();
+  
+  // Add keyboard navigation for pricing cards
+  addPricingCardKeyboardSupport();
 });
+
+// Add keyboard navigation support for pricing cards
+function addPricingCardKeyboardSupport() {
+  const pricingCards = document.querySelectorAll('.pricing-card');
+  
+  pricingCards.forEach(card => {
+    // Make cards focusable
+    card.setAttribute('tabindex', '0');
+    
+    // Add keyboard event listeners
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        const planType = card.getAttribute('data-plan');
+        if (planType) {
+          selectPlan(planType);
+        }
+      }
+    });
+    
+    // Add focus styles
+    card.addEventListener('focus', () => {
+      card.style.outline = '2px solid #3b82f6';
+      card.style.outlineOffset = '2px';
+    });
+    
+    card.addEventListener('blur', () => {
+      card.style.outline = 'none';
+    });
+  });
+}
 
 function promptRenewPlan() {
   document.getElementById('upgradeModal').style.display = 'flex';
