@@ -1487,10 +1487,14 @@ function resizeImage(file, maxWidth) {
 
 function showUpgradePrompt() {
     document.getElementById('upgradeModal').style.display = 'flex';
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
 }
 
 function closeUpgradeModal() {
     document.getElementById('upgradeModal').style.display = 'none';
+    // Restore body scroll when modal is closed
+    document.body.style.overflow = 'auto';
 }
 
 // Helper: Get user's current plan
@@ -1688,7 +1692,22 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Add keyboard navigation for pricing cards
   addPricingCardKeyboardSupport();
+  
+  // Add click outside to close modal
+  addModalClickOutsideHandler();
 });
+
+// Add click outside modal to close functionality
+function addModalClickOutsideHandler() {
+  const modal = document.getElementById('upgradeModal');
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeUpgradeModal();
+      }
+    });
+  }
+}
 
 // Add keyboard navigation support for pricing cards
 function addPricingCardKeyboardSupport() {
