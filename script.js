@@ -27,6 +27,46 @@ const DAILY_LIMITS = {
     refreshQuiz: 3  // For "Refresh Quiz" button
 };
 
+// --- Plan-specific Daily Limits ---
+const PLAN_LIMITS = {
+    free: {
+        responses: 10,
+        readAnswers: 5,
+        notesGenerated: 5,
+        imageSolutions: 4,
+        nextQuiz: 2,
+        refreshQuiz: 3,
+        flashcards: 3
+    },
+    basic: {
+        responses: 25,
+        readAnswers: 15,
+        notesGenerated: 10,
+        imageSolutions: 5,
+        nextQuiz: 5,
+        refreshQuiz: 3,
+        flashcards: 5
+    },
+    standard: {
+        responses: 75,
+        readAnswers: 50,
+        notesGenerated: 25,
+        imageSolutions: 15,
+        nextQuiz: 15,
+        refreshQuiz: 10,
+        flashcards: 15
+    },
+    premium: {
+        responses: 99999,
+        readAnswers: 99999,
+        notesGenerated: 99999,
+        imageSolutions: 99999,
+        nextQuiz: 99999,
+        refreshQuiz: 99999,
+        flashcards: 99999
+    }
+};
+
 let dailyUsage = {
     responses: 0,
     readAnswers: 0,
@@ -34,6 +74,7 @@ let dailyUsage = {
     imageSolutions: 0,
     nextQuiz: 0,
     refreshQuiz: 0,
+    flashcards: 0,
     lastResetDate: ''
 };
 
@@ -65,6 +106,7 @@ function resetAllDailyUsage() {
         imageSolutions: 0,
         nextQuiz: 0,
         refreshQuiz: 0,
+        flashcards: 0,
         lastResetDate: getTodayDateString()
     };
     localStorage.setItem('tutorbotDailyUsage', JSON.stringify(dailyUsage));
@@ -80,9 +122,14 @@ function updateUsage(feature) {
 }
 
 function checkUsage(feature, limit, actionName, outputElement = null) {
-    if (isPlusUser()) return true; // No limits for Plus
-    if (dailyUsage[feature] >= limit) {
-        const message = `You've reached your daily limit on the free plan. Upgrade to TutorBot Plus for unlimited access!`;
+    const userPlan = getUserPlan();
+    const planLimits = PLAN_LIMITS[userPlan];
+    
+    if (userPlan === 'premium') return true; // No limits for Premium
+    
+    if (dailyUsage[feature] >= planLimits[feature]) {
+        const planName = userPlan.charAt(0).toUpperCase() + userPlan.slice(1);
+        const message = `You've reached your daily limit on the ${planName} plan. Upgrade to a higher plan for more access!`;
         if (outputElement) {
             outputElement.innerHTML = `<div class="limit-message-box">${message}</div>`;
             outputElement.style.display = 'block';
@@ -571,11 +618,15 @@ async function getResponse() {
 }
 
 async function generateFlashcards() {
-
+  const flashcardBox = document.getElementById('flashcard-box');
+  
+  // Check daily usage limit for flashcards
+  if (!checkUsage('flashcards', PLAN_LIMITS[getUserPlan()].flashcards, 'flashcard generations', flashcardBox)) {
+      return;
+  }
 
   const question = document.getElementById('question').value.trim();
   const subject = document.getElementById('subject').value;
-  const flashcardBox = document.getElementById('flashcard-box');
 
   if (!question) {
     flashcardBox.innerText = "Enter a core concept or question in the 'Your Question' box first to generate a flashcard.";
@@ -589,7 +640,7 @@ async function generateFlashcards() {
   const flashcardContent = await callGeminiAPI(promptParts, flashcardBox, "Crafting your flashcard...");
   if (flashcardContent) {
       flashcardBox.innerHTML = `<strong>Flashcard Generated:</strong><br>${flashcardContent}<br><br><button onclick="saveFlashcard()" class="continue-btn" style="margin-top: 10px;">💾 Save Flashcard</button>`;
-     
+      updateUsage('flashcards');
   }
 }
 
@@ -1442,36 +1493,94 @@ function closeUpgradeModal() {
     document.getElementById('upgradeModal').style.display = 'none';
 }
 
-// Helper: Checking if user is Plus (stored in localStorage)
-function isPlusUser() {
-    const paid = localStorage.getItem('tutorbotPlus') === 'true';
-    const paidDate = parseInt(localStorage.getItem('tutorbotPlusPaidDate') || '0', 10);
-    if (!paid || !paidDate) return false;
+// Helper: Get user's current plan
+function getUserPlan() {
+    const plan = localStorage.getItem('tutorbotPlan') || 'free';
+    const paidDate = parseInt(localStorage.getItem('tutorbotPaidDate') || '0', 10);
+    
+    if (plan === 'free' || !paidDate) return 'free';
+    
     const now = Date.now();
     const oneMonth = 30 * 24 * 60 * 60 * 1000; // 30 days in ms
     if (now - paidDate > oneMonth) {
-        // Expired: remove Plus status
-      localStorage.removeItem('tutorbotPlus');
-      localStorage.removeItem('tutorbotPlusPaidDate');
-      return false;
+        // Expired: reset to free
+        localStorage.removeItem('tutorbotPlan');
+        localStorage.removeItem('tutorbotPaidDate');
+        return 'free';
     }
-    return true;
+    return plan;
+}
+
+// Helper: Checking if user is Plus (for backward compatibility)
+function isPlusUser() {
+    return getUserPlan() === 'premium';
+}
+
+// Plan selection handler
+function selectPlan(planType) {
+    const planPrices = {
+        basic: 1500,    // GHS 15.00 in pesewas
+        standard: 3500, // GHS 35.00 in pesewas
+        premium: 5000   // GHS 50.00 in pesewas
+    };
+    
+    const planNames = {
+        basic: 'Basic',
+        standard: 'Standard', 
+        premium: 'Premium'
+    };
+    
+    if (!planPrices[planType]) {
+        alert('Invalid plan selected');
+        return;
+    }
+    
+    // Store selected plan for payment
+    localStorage.setItem('selectedPlan', planType);
+    
+    // Proceed with payment
+    payWithPaystack(planType, planPrices[planType], planNames[planType]);
 }
 
 // Called this after successful payment
-function grantPlusAccess() {
-    localStorage.setItem('tutorbotPlus', 'true');
-    localStorage.setItem('tutorbotPlusPaidDate', Date.now().toString()); // Store payment timestamp
+function grantPlanAccess(planType) {
+    localStorage.setItem('tutorbotPlan', planType);
+    localStorage.setItem('tutorbotPaidDate', Date.now().toString());
+    
+    // For backward compatibility, also set Plus status if premium
+    if (planType === 'premium') {
+        localStorage.setItem('tutorbotPlus', 'true');
+        localStorage.setItem('tutorbotPlusPaidDate', Date.now().toString());
+    }
+    
     closeUpgradeModal();
-    document.getElementById('response').innerHTML = `<div class="limit-message-box" style="background:#10b981; color:#fff;">🎉 Upgrade successful! You now have unlimited access to all features for 1 month.</div>`;
+    
+    const planNames = {
+        basic: 'Basic',
+        standard: 'Standard',
+        premium: 'Premium'
+    };
+    
+    document.getElementById('response').innerHTML = `<div class="limit-message-box" style="background:#10b981; color:#fff;">🎉 Upgrade successful! You now have ${planNames[planType]} plan access for 1 month.</div>`;
     document.getElementById('response').style.display = 'block';
-    Object.keys(DAILY_LIMITS).forEach(k => DAILY_LIMITS[k] = 99999);
+    
+    // Update limits based on plan
+    const planLimits = PLAN_LIMITS[planType];
+    Object.keys(DAILY_LIMITS).forEach(k => {
+        if (planLimits[k]) DAILY_LIMITS[k] = planLimits[k];
+    });
+    
     setButtonsDisabled(false);
 }
 
+// Legacy function for backward compatibility
+function grantPlusAccess() {
+    grantPlanAccess('premium');
+}
+
 // Paystack payment logic
-function payWithPaystack() {
-    console.log('payWithPaystack called');
+function payWithPaystack(planType = 'premium', amount = 5000, planName = 'Premium') {
+    console.log('payWithPaystack called for plan:', planType, 'amount:', amount);
     console.log('auth.currentUser:', auth.currentUser);
     let email = '';
     if (window.auth && auth.currentUser && auth.currentUser.email) {
@@ -1488,11 +1597,11 @@ function payWithPaystack() {
     var handler = PaystackPop.setup({
         key: 'pk_live_1e834a58cf99e6e60271252fde08554e4515b4a4',
         email: email,
-        amount: 5000, 
+        amount: amount, 
         currency: "GHS",
-        ref: 'TUTORBOT-' + Math.floor((Math.random() * 1000000000) + 1),
+        ref: 'TUTORBOT-' + planType.toUpperCase() + '-' + Math.floor((Math.random() * 1000000000) + 1),
         callback: function(response){
-            grantPlusAccess();
+            grantPlanAccess(planType);
         },
         onClose: function(){
             alert('Payment window closed. Upgrade not completed.');
@@ -1524,16 +1633,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // If Plus expired, prompt renewal
-    if (!isPlusUser() && (localStorage.getItem('tutorbotPlusPaidDate'))) {
-        promptRenewPlus();
+    // If plan expired, prompt renewal
+    const userPlan = getUserPlan();
+    if (userPlan === 'free' && (localStorage.getItem('tutorbotPaidDate'))) {
+        promptRenewPlan();
     }
 
-    // If Plus is active, remove limits
-    if (isPlusUser()) {
-        Object.keys(DAILY_LIMITS).forEach(k => DAILY_LIMITS[k] = 99999);
-        setButtonsDisabled(false);
-    }
+    // Update limits based on current plan
+    const planLimits = PLAN_LIMITS[userPlan];
+    Object.keys(DAILY_LIMITS).forEach(k => {
+        if (planLimits[k]) DAILY_LIMITS[k] = planLimits[k];
+    });
+    
+    setButtonsDisabled(false);
 });
 
 // Initialize speech buttons on load
@@ -1542,10 +1654,15 @@ document.addEventListener('DOMContentLoaded', () => {
   updateSpeechControlButtons();
 });
 
-function promptRenewPlus() {
+function promptRenewPlan() {
   document.getElementById('upgradeModal').style.display = 'flex';
-  document.getElementById('response').innerHTML = `<div class="limit-message-box">Your Plus subscription has expired. Please renew to continue enjoying unlimited access.</div>`;
+  document.getElementById('response').innerHTML = `<div class="limit-message-box">Your subscription has expired. Please renew to continue enjoying your plan benefits.</div>`;
   document.getElementById('response').style.display = 'block';
+};
+
+// Legacy function for backward compatibility
+function promptRenewPlus() {
+  promptRenewPlan();
 };
 
 // Added this function for testing
@@ -1553,5 +1670,29 @@ function resetDailyLimits() {
     localStorage.removeItem('tutorbotDailyUsage');
     initializeDailyUsage();
     console.log('Daily limits reset!');
+}
+
+// Test function for the new pricing system
+function testPricingSystem() {
+    console.log('=== Testing Pricing System ===');
+    
+    // Test plan limits
+    console.log('Plan Limits:', PLAN_LIMITS);
+    
+    // Test current user plan
+    const currentPlan = getUserPlan();
+    console.log('Current User Plan:', currentPlan);
+    
+    // Test plan limits for current user
+    const currentLimits = PLAN_LIMITS[currentPlan];
+    console.log('Current User Limits:', currentLimits);
+    
+    // Test daily usage
+    console.log('Current Daily Usage:', dailyUsage);
+    
+    // Test if user is premium
+    console.log('Is Premium User:', isPlusUser());
+    
+    console.log('=== Test Complete ===');
 }
 
