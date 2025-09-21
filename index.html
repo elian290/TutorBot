@@ -400,15 +400,15 @@
         </div>
 
         <div>
-            <label>Solve WAEC Past Question (Image Input):</label>
+            <label>Solve WAEC Past Question (Image/PDF Input):</label>
             <div class="image-input-controls">
                 <button onclick="openCamera()">📸 Camera</button>
-                <input type="file" id="fileUpload" accept="image/*" style="display: none;" onchange="handleFileUpload(event)">
+                <input type="file" id="fileUpload" accept="image/*,.pdf" style="display: none;" onchange="handleFileUpload(event)">
                 <button onclick="document.getElementById('fileUpload').click()">📁 File Upload</button>
             </div>
 
             <div id="imagePreviewContainer" style="display:none;">
-                <p class="placeholder-text" id="imagePlaceholder">No image selected. Use camera or file upload.</p>
+                <p class="placeholder-text" id="imagePlaceholder">No file selected. Use camera or file upload (images/PDFs).</p>
                 <img id="imagePreview" src="#" alt="Image Preview" style="display:none;">
                 <video id="cameraStream" autoplay muted style="display:none;"></video>
                 <canvas id="cameraCanvas" style="display:none;"></canvas>
@@ -420,7 +420,7 @@
                 <button class="clear-image-btn" id="clearImageBtn" onclick="clearImage()" style="display:none;">Clear Image</button>
             </div>
 
-            <button id="solvePastQuestionBtn" onclick="solvePastQuestion()">🧠 Get Solution (from Image)</button>
+            <button id="solvePastQuestionBtn" onclick="solvePastQuestion()">🧠 Get Solution (from Image/PDF)</button>
             <div class="past-question-solver-box" id="past-question-solution-box" style="display:none;"></div>
         </div>
 

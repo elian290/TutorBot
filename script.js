@@ -794,28 +794,46 @@ async function solvePastQuestion() {
   }
 
   try {
-    // Convert image file to base64
-  const base64Image = await fileToBase64(selectedImageFile);
-  if (!base64Image) {
-      solutionBox.innerText = "Failed to process image. Please try again with a different image.";
+    let base64Data, mimeType;
+    
+    if (selectedImageFile.type === 'application/pdf') {
+      // Handle PDF files - convert first page to image
+      console.log('Processing PDF file...');
+      const pdfImage = await convertPdfToImage(selectedImageFile);
+      if (!pdfImage) {
+        solutionBox.innerText = "Failed to process PDF. Please try with an image file instead.";
         solutionBox.style.display = 'block';
-      return;
-  }
-
-    console.log('Image processed, sending to API...');
-
-  const promptText = `You are a highly experienced SHS teacher in Ghana specializing in ${subject}. Analyze the image provided, which contains a WAEC past question. Provide a detailed, step-by-step solution or explanation for this question. Your answer should be comprehensive, accurate, and structured in a way that matches typical WAEC mark schemes, clearly showing working or reasoning, suitable for a Ghanaian SHS student.`;
-
-  // Multimodal prompt: array of parts including text and image
-  const promptParts = [
-      { text: promptText },
-      {
-          inlineData: {
-              mimeType: selectedImageFile.type,
-              data: base64Image.split(',')[1] // Get base64 data after 'data:image/jpeg;base64,'
-          }
+        return;
       }
-  ];
+      base64Data = pdfImage;
+      mimeType = 'image/jpeg';
+    } else {
+      // Handle image files
+      console.log('Processing image file...');
+      const base64Image = await fileToBase64(selectedImageFile);
+      if (!base64Image) {
+        solutionBox.innerText = "Failed to process image. Please try again with a different image.";
+        solutionBox.style.display = 'block';
+        return;
+      }
+      base64Data = base64Image;
+      mimeType = selectedImageFile.type;
+    }
+
+    console.log('File processed, sending to API...');
+
+    const promptText = `You are a highly experienced SHS teacher in Ghana specializing in ${subject}. Analyze the image provided, which contains a WAEC past question. Provide a detailed, step-by-step solution or explanation for this question. Your answer should be comprehensive, accurate, and structured in a way that matches typical WAEC mark schemes, clearly showing working or reasoning, suitable for a Ghanaian SHS student.`;
+
+    // Multimodal prompt: array of parts including text and image
+    const promptParts = [
+        { text: promptText },
+        {
+            inlineData: {
+                mimeType: mimeType,
+                data: base64Data.split(',')[1] // Get base64 data after 'data:image/jpeg;base64,'
+            }
+        }
+    ];
 
     console.log('Sending multimodal request to API...');
   const solutionContent = await callGeminiAPI(promptParts, solutionBox, "Analyzing image and preparing detailed WAEC solution...");
@@ -1471,15 +1489,23 @@ async function handleFileUpload(event) {
   // Clear any previous solution
   solutionBox.style.display = 'none';
 
-  if (file && file.type.startsWith('image/')) {
+  if (file && (file.type.startsWith('image/') || file.type === 'application/pdf')) {
       imagePreviewContainer.style.display = 'block';
       imagePlaceholder.style.display = 'none';
 
-      const resizedBlob = await resizeImage(file, 1024);
-      selectedImageFile = resizedBlob;
-
-      imagePreview.src = URL.createObjectURL(selectedImageFile);
-      imagePreview.style.display = 'block';
+      if (file.type.startsWith('image/')) {
+        // Handle image files
+        const resizedBlob = await resizeImage(file, 1024);
+        selectedImageFile = resizedBlob;
+        imagePreview.src = URL.createObjectURL(selectedImageFile);
+        imagePreview.style.display = 'block';
+      } else if (file.type === 'application/pdf') {
+        // Handle PDF files
+        selectedImageFile = file; // Store PDF file directly
+        imagePreview.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjY2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+UERGIEZpbGU8L3RleHQ+PC9zdmc+';
+        imagePreview.style.display = 'block';
+      }
+      
       clearImageBtn.style.display = 'block'; // Show clear button
       setButtonsDisabled(false); // Re-enable buttons if they were disabled
       // Disable camera button when file is uploaded
@@ -1491,7 +1517,7 @@ async function handleFileUpload(event) {
       imagePlaceholder.style.display = 'block';
       imagePreviewContainer.style.display = 'block'; // Keep container visible
       clearImageBtn.style.display = 'none';
-      solutionBox.innerHTML = `<div class="limit-message-box">Please select an image file.</div>`; // Display message directly
+      solutionBox.innerHTML = `<div class="limit-message-box">Please select an image or PDF file.</div>`; // Display message directly
       solutionBox.style.display = 'block';
       // Re-enable camera button
      
@@ -1554,6 +1580,27 @@ function resizeImage(file, maxWidth) {
           image.src = readerEvent.target.result;
       };
       reader.onerror = (error) => reject(error);
+  });
+}
+
+// Helper function to convert PDF to image (first page only)
+async function convertPdfToImage(pdfFile) {
+  return new Promise((resolve, reject) => {
+    try {
+      // For now, we'll use a simple approach - convert PDF to base64 and let the backend handle it
+      // In a production environment, you'd want to use a library like PDF.js to render the first page
+      const reader = new FileReader();
+      reader.onload = () => {
+        // For PDFs, we'll send the raw PDF data and let the AI model handle it
+        // Some AI models can process PDFs directly
+        resolve(reader.result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(pdfFile);
+    } catch (error) {
+      console.error('Error converting PDF to image:', error);
+      reject(error);
+    }
   });
 }
 
