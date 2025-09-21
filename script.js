@@ -537,7 +537,7 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
     // Set a timeout for the request (2 minutes for image processing, 1 minute for text)
     const isImageRequest = promptParts.some(part => part.inlineData);
     const timeoutMs = isImageRequest ? 120000 : 60000; // 2 min for images, 1 min for text
-    
+       
     const timeoutId = setTimeout(() => {
         abortController.abort();
     }, timeoutMs);
@@ -549,7 +549,7 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
             return null;
         }
         const idToken = await user.getIdToken();
-
+       
         console.log('Current hostname:', window.location.hostname);
         const API_BASE = BACKEND_URL;
         console.log('Using API_BASE:', API_BASE);
@@ -602,7 +602,7 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
             if (abortController.signal.aborted) {
                 outputElement.innerText = "Request timed out. Please try again with a smaller image or check your connection.";
             } else {
-                outputElement.innerText = "Generation cancelled by user.";
+            outputElement.innerText = "Generation cancelled by user.";
             }
         } else {
             outputElement.innerText = `An unexpected error occurred: ${error.message}. Please try again.`;
@@ -649,7 +649,7 @@ async function getResponse() {
 
 async function generateFlashcards() {
   const flashcardBox = document.getElementById('flashcard-box');
-  
+
   // Check daily usage limit for flashcards
   if (!checkUsage('flashcards', PLAN_LIMITS[getUserPlan()].flashcards, 'flashcard generations', flashcardBox)) {
       return;
@@ -795,34 +795,34 @@ async function solvePastQuestion() {
 
   try {
     // Convert image file to base64
-    const base64Image = await fileToBase64(selectedImageFile);
-    if (!base64Image) {
-        solutionBox.innerText = "Failed to process image. Please try again with a different image.";
+  const base64Image = await fileToBase64(selectedImageFile);
+  if (!base64Image) {
+      solutionBox.innerText = "Failed to process image. Please try again with a different image.";
         solutionBox.style.display = 'block';
-        return;
-    }
+      return;
+  }
 
     console.log('Image processed, sending to API...');
 
-    const promptText = `You are a highly experienced SHS teacher in Ghana specializing in ${subject}. Analyze the image provided, which contains a WAEC past question. Provide a detailed, step-by-step solution or explanation for this question. Your answer should be comprehensive, accurate, and structured in a way that matches typical WAEC mark schemes, clearly showing working or reasoning, suitable for a Ghanaian SHS student.`;
+  const promptText = `You are a highly experienced SHS teacher in Ghana specializing in ${subject}. Analyze the image provided, which contains a WAEC past question. Provide a detailed, step-by-step solution or explanation for this question. Your answer should be comprehensive, accurate, and structured in a way that matches typical WAEC mark schemes, clearly showing working or reasoning, suitable for a Ghanaian SHS student.`;
 
-    // Multimodal prompt: array of parts including text and image
-    const promptParts = [
-        { text: promptText },
-        {
-            inlineData: {
-                mimeType: selectedImageFile.type,
-                data: base64Image.split(',')[1] // Get base64 data after 'data:image/jpeg;base64,'
-            }
-        }
-    ];
+  // Multimodal prompt: array of parts including text and image
+  const promptParts = [
+      { text: promptText },
+      {
+          inlineData: {
+              mimeType: selectedImageFile.type,
+              data: base64Image.split(',')[1] // Get base64 data after 'data:image/jpeg;base64,'
+          }
+      }
+  ];
 
     console.log('Sending multimodal request to API...');
-    const solutionContent = await callGeminiAPI(promptParts, solutionBox, "Analyzing image and preparing detailed WAEC solution...");
+  const solutionContent = await callGeminiAPI(promptParts, solutionBox, "Analyzing image and preparing detailed WAEC solution...");
     
-    if (solutionContent) {
-        solutionBox.innerHTML = `<strong>Solution for WAEC Past Question:</strong><br>${solutionContent}`;
-        updateUsage('imageSolutions');
+  if (solutionContent) {
+      solutionBox.innerHTML = `<strong>Solution for WAEC Past Question:</strong><br>${solutionContent}`;
+      updateUsage('imageSolutions'); 
         console.log('Solution received successfully');
     } else {
         solutionBox.innerText = "Failed to generate solution. Please try again.";
@@ -1339,10 +1339,8 @@ function startVoiceInput() {
 
 async function openCamera() {
   const solutionBox = document.getElementById('past-question-solution-box');
-  // Check daily usage limit. This counts as one image solution attempt.
-  if (!checkUsage('imageSolutions', DAILY_LIMITS.imageSolutions, 'image solutions', solutionBox)) {
-      return;
-  }
+  // Don't check usage limit when opening camera - only when actually solving
+  // This prevents the "generating" state from being triggered
 
   const video = document.getElementById('cameraStream');
   const imagePreview = document.getElementById('imagePreview');
@@ -1355,6 +1353,9 @@ async function openCamera() {
   video.style.display = 'block';
   cameraButtons.style.display = 'flex';
   clearImageBtn.style.display = 'none'; // Hide clear button when camera is active
+  
+  // Clear any previous solution
+  solutionBox.style.display = 'none';
 
   try {
       mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); // Prefer back camera
@@ -1414,9 +1415,9 @@ function captureImage() {
       imagePreview.style.display = 'block';
       imagePlaceholder.style.display = 'none';
       clearImageBtn.style.display = 'block';
-      
+    
       // Re-enable file upload button
-      document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
+    document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
       
       console.log('Image captured and processed successfully');
     } catch (error) {
@@ -1448,11 +1449,8 @@ function cancelCamera() {
 async function handleFileUpload(event) {
   const solutionBox = document.getElementById('past-question-solution-box');
   
-  if (!checkUsage('imageSolutions', DAILY_LIMITS.imageSolutions, 'image solutions', solutionBox)) {
-     
-      document.getElementById('fileUpload').value = '';
-      return;
-  }
+  // Don't check usage limit when uploading file - only when actually solving
+  // This prevents the "generating" state from being triggered
 
   const file = event.target.files[0];
   const imagePreview = document.getElementById('imagePreview');
@@ -1470,6 +1468,9 @@ async function handleFileUpload(event) {
   video.style.display = 'none';
   cameraButtons.style.display = 'none';
   document.getElementById('fileUpload').value = ''; 
+  
+  // Clear any previous solution
+  solutionBox.style.display = 'none';
 
   if (file && file.type.startsWith('image/')) {
       imagePreviewContainer.style.display = 'block';
@@ -1658,7 +1659,7 @@ function grantPlanAccess(planType) {
     
     // For backward compatibility, also set Plus status if premium
     if (planType === 'premium') {
-        localStorage.setItem('tutorbotPlus', 'true');
+    localStorage.setItem('tutorbotPlus', 'true');
         localStorage.setItem('tutorbotPlusPaidDate', Date.now().toString());
     }
     
@@ -1754,7 +1755,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (planLimits[k]) DAILY_LIMITS[k] = planLimits[k];
     });
     
-    setButtonsDisabled(false);
+        setButtonsDisabled(false);
 });
 
 // Initialize speech buttons on load
