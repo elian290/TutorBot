@@ -546,6 +546,13 @@ async function validateAndSaveUsername(username, avatar) {
   goToScreen('chatbotScreen');
   if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
 }
+
+function getUserPlan() {
+  // You can customize this logic as needed
+  // For now, just return 'free' or use localStorage if you have plan info
+  return localStorage.getItem('tutorbotPlan') || 'free';
+}
+
 function renderProfileHeader(profile) {
   const header = document.getElementById('profileHeader');
   const avatar = document.getElementById('headerAvatar');
