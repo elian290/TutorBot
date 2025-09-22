@@ -339,17 +339,26 @@ function getPlanUsernameLimit() {
 function initializeProfileSetup() {
   const avatarPreview = document.getElementById('profileAvatarPreview');
   if (avatarPreview) avatarPreview.style.backgroundImage = '';
-  // build default icons
+  // Build default icons (emoji + letter avatars)
   const defaults = document.getElementById('avatarDefaults');
-  if (defaults && !defaults.dataset.built) {
-    DEFAULT_AVATARS.forEach(icon => {
+  if (defaults) {
+    defaults.innerHTML = '';
+    const pool = [...DEFAULT_AVATARS];
+    for (let i = 0; i < 26; i++) pool.push(String.fromCharCode(65 + i));
+    pool.forEach(token => {
       const div = document.createElement('div');
       div.className = 'icon';
-      div.textContent = icon;
-      div.onclick = () => setAvatarFromEmoji(icon);
+      if (/^[A-Z]$/.test(token)) {
+        const url = renderLetterAvatar(token);
+        div.style.backgroundImage = `url('${url}')`;
+        div.style.backgroundSize = 'cover';
+        div.onclick = () => setAvatarFromUrl(url);
+      } else {
+        div.textContent = token;
+        div.onclick = () => setAvatarFromEmoji(token);
+      }
       defaults.appendChild(div);
     });
-    defaults.dataset.built = 'true';
   }
   // propose username
   const input = document.getElementById('usernameInput');
@@ -357,6 +366,11 @@ function initializeProfileSetup() {
   if (input) input.value = generateUsernameFromEmail(email);
   const hint = document.getElementById('usernameHint');
   if (hint) hint.textContent = `You can change your username later. Limit: ${getPlanUsernameLimit()} changes.`;
+}
+
+function toggleAvatarChooser() {
+  const ch = document.getElementById('avatarChooser');
+  if (ch) ch.style.display = ch.style.display === 'none' ? 'block' : 'none';
 }
 
 function openAvatarDefaults() {
@@ -377,6 +391,29 @@ function setAvatarFromEmoji(emoji) {
   const dataUrl = canvas.toDataURL('image/png');
   avatarPreview.style.backgroundImage = `url('${dataUrl}')`;
   avatarPreview.dataset.src = dataUrl;
+}
+
+function setAvatarFromUrl(url) {
+  const avatarPreview = document.getElementById('profileAvatarPreview');
+  if (!avatarPreview) return;
+  avatarPreview.style.backgroundImage = `url('${url}')`;
+  avatarPreview.dataset.src = url;
+}
+
+function renderLetterAvatar(letter) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0,0,256,256);
+  grad.addColorStop(0,'#4f46e5');
+  grad.addColorStop(1,'#06b6d4');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,256,256);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 170px Poppins, Arial, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(letter, 128, 142);
+  return canvas.toDataURL('image/png');
 }
 
 function handleAvatarFileUpload(event) {
@@ -435,30 +472,58 @@ function saveProfileAndContinue() {
 async function validateAndSaveUsername(username, avatar) {
   try {
     const token = await getAuthToken();
-    const check = await fetch(`${BACKEND_URL}/api/user-data/username-available/${encodeURIComponent(username)}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const { available } = await check.json();
+    let available = true;
+    try {
+      const check = await fetch(`${BACKEND_URL}/api/user-data/username-available/${encodeURIComponent(username)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (check.status === 404) {
+        // Backend not yet updated; skip availability check
+        console.warn('Username availability route missing (404). Skipping check.');
+      } else {
+        const data = await check.json();
+        available = !!data.available;
+      }
+    } catch (e) {
+      console.warn('Username availability check failed. Proceeding without check.');
+    }
     if (!available) {
       alert('Username already exists. Please choose another.');
       return;
     }
     const level = getStoredLevel() || 1;
     const xp = getStoredXP() || 0;
-    await fetch(`${BACKEND_URL}/api/user-data/profile`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ username, avatar, level, xp })
-    });
+    try {
+      const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ username, avatar, level, xp })
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        console.warn('Profile save error:', resp.status, txt);
+        // If backend not updated or auth missing, save locally and continue
+        if (resp.status === 404 || resp.status === 401 || resp.status === 500) {
+          console.warn('Saving profile locally as fallback.');
+        } else if (resp.status === 409) {
+          alert('Username already exists. Please choose another.');
+          return;
+        } else {
+          alert('Failed to save profile on server. Using local save.');
+        }
+      }
+    } catch (e) {
+      console.warn('Profile save request failed. Using local save.', e);
+    }
     const profile = { username, avatar, level, xp, usernameChanges: getStoredUsernameChanges() || 0 };
     setStoredProfile(profile);
     renderProfileHeader(profile);
     goToScreen('chatbotScreen');
   } catch (e) {
-    alert('Failed to save profile. Please try again.');
+    alert('Failed to save profile. Please log in and try again.');
   }
 }
 

@@ -1,4 +1,3 @@
-
 const firebaseConfig = {
   apiKey: "AIzaSyDvUac4ETO-gUy0NZRgysdNmOzviTSTmOg",
   authDomain: "tutorbot-1.firebaseapp.com",
