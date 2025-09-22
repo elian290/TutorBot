@@ -16,8 +16,22 @@ let selectedImageFile = null; // Stores the image file/blob to send to Gemini
 let avatarMediaStream = null; // For avatar camera
 let avatarFacingMode = 'user';
 
-// Profile defaults
-const DEFAULT_AVATARS = ['📘','📗','📙','📕','🧠','📝','🧪','🔬','📊','📚','🎯','⚡'];
+// Profile defaults (SVGs provided in Frontend/svg)
+const DEFAULT_AVATAR_SVGS = [
+  'svg/activity-svgrepo-com.svg',
+  'svg/alarm-plus-svgrepo-com.svg',
+  'svg/alien-svgrepo-com.svg',
+  'svg/bell-svgrepo-com.svg',
+  'svg/chef-man-cap-svgrepo-com.svg',
+  'svg/cloud-bolt-svgrepo-com.svg',
+  'svg/cloud-sun-alt-svgrepo-com.svg',
+  'svg/cloud-up-arrow-svgrepo-com.svg',
+  'svg/hourglass-half-svgrepo-com.svg',
+  'svg/icicles-svgrepo-com.svg',
+  'svg/snow-alt-svgrepo-com.svg',
+  'svg/turn-off-svgrepo-com.svg',
+  'svg/umbrella-svgrepo-com.svg'
+];
 const PROFILE_KEY = 'tutorbotProfile';
 const USERNAME_CHANGES_KEY = 'tutorbotUsernameChanges';
 const XP_KEY = 'tutorbotXP';
@@ -340,24 +354,17 @@ function getPlanUsernameLimit() {
 function initializeProfileSetup() {
   const avatarPreview = document.getElementById('profileAvatarPreview');
   if (avatarPreview) avatarPreview.style.backgroundImage = '';
-  // Build default icons (emoji + letter avatars)
+  // Build default icons (SVG list)
   const defaults = document.getElementById('avatarDefaults');
   if (defaults) {
     defaults.innerHTML = '';
-    const pool = [...DEFAULT_AVATARS];
-    for (let i = 0; i < 26; i++) pool.push(String.fromCharCode(65 + i));
-    pool.forEach(token => {
+    DEFAULT_AVATAR_SVGS.forEach(path => {
       const div = document.createElement('div');
       div.className = 'icon';
-      if (/^[A-Z]$/.test(token)) {
-        const url = renderLetterAvatar(token);
-        div.style.backgroundImage = `url('${url}')`;
-        div.style.backgroundSize = 'cover';
-        div.onclick = () => setAvatarFromUrl(url);
-      } else {
-        div.textContent = token;
-        div.onclick = () => setAvatarFromEmoji(token);
-      }
+      div.style.backgroundImage = `url('${path}')`;
+      div.style.backgroundSize = 'cover';
+      div.style.backgroundPosition = 'center';
+      div.onclick = () => setAvatarFromUrl(path);
       defaults.appendChild(div);
     });
   }
@@ -392,6 +399,9 @@ function setAvatarFromEmoji(emoji) {
   const dataUrl = canvas.toDataURL('image/png');
   avatarPreview.style.backgroundImage = `url('${dataUrl}')`;
   avatarPreview.dataset.src = dataUrl;
+  // Hide placeholder when an avatar is set
+  const ph = avatarPreview.querySelector('.avatar-placeholder');
+  if (ph) ph.style.display = 'none';
 }
 
 function setAvatarFromUrl(url) {
@@ -399,6 +409,8 @@ function setAvatarFromUrl(url) {
   if (!avatarPreview) return;
   avatarPreview.style.backgroundImage = `url('${url}')`;
   avatarPreview.dataset.src = url;
+  const ph = avatarPreview.querySelector('.avatar-placeholder');
+  if (ph) ph.style.display = 'none';
 }
 
 function renderLetterAvatar(letter) {
