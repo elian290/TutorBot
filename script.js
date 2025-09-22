@@ -795,10 +795,33 @@ async function loginUser() {
         const header = document.getElementById('profileHeader');
         if (header) header.style.display = 'none';
       } catch {}
-      goToScreen('courseScreen');
+     await fetchProfileFromBackend();
     } catch (error) {
       document.getElementById('loginError').innerText = error.message;
     }
+}
+
+async function fetchProfileFromBackend() {
+  try {
+    const token = await getAuthToken();
+    const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (resp.ok) {
+      const profile = await resp.json();
+      setStoredProfile(profile); // Save to localStorage for quick access
+      renderProfileHeader(profile);
+      goToScreen('chatbotScreen');
+    } else {
+      // No profile found, prompt setup
+      goToScreen('profileScreen');
+      initializeProfileSetup();
+    }
+  } catch (e) {
+    // If backend fails, fallback to local profile setup
+    goToScreen('profileScreen');
+    initializeProfileSetup();
+  }
 }
 
 async function loadUserData() {
@@ -830,13 +853,13 @@ async function startTutorBot() {
   subjectSelect.innerHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
   // After course selection, go to profile setup if not set
   const profile = getStoredProfile();
-  if (!profile || !profile.username) {
-    goToScreen('profileScreen');
-    initializeProfileSetup();
-    return;
-  }
-  renderProfileHeader(profile);
-  goToScreen('chatbotScreen');
+    if (!profile || !profile.username) {
+  // Try to fetch from backend before prompting setup
+  await fetchProfileFromBackend();
+  return;
+}
+renderProfileHeader(profile);
+goToScreen('chatbotScreen');
   // Load user data when entering chatbot screen
   await loadUserData();
 }
@@ -968,6 +991,9 @@ async function getResponse() {
 
   const subject = document.getElementById('subject').value;
   const question = document.getElementById('question').value.trim();
+
+
+  if (!question) {
 
 
   if (!question) {
@@ -2286,4 +2312,4 @@ async function testAPIConnection() {
     
     console.log('=== API Test Complete ===');
 }
-
+}
