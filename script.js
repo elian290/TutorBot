@@ -743,15 +743,33 @@ async function verifyAndSignup() {
         `;
       }
       
-      auth.createUserWithEmailAndPassword(verificationEmail, password)
-        .then(() => {
-          localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
-          goToScreen('courseScreen');
-        })
-        .catch(error => {
-          alert('Signup failed: ' + error.message);
-          goBackToSignup();
-        });
+    auth.createUserWithEmailAndPassword(verificationEmail, password)
+  .then(async () => {
+    localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
+    // After signup, always check for profile in backend
+    const token = await auth.currentUser.getIdToken();
+    const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (resp.ok) {
+      const profile = await resp.json();
+      if (profile && profile.username) {
+        setStoredProfile(profile);
+        renderProfileHeader(profile);
+        goToScreen('chatbotScreen');
+      } else {
+        goToScreen('profileScreen');
+        initializeProfileSetup();
+      }
+    } else {
+      goToScreen('profileScreen');
+      initializeProfileSetup();
+    }
+  })
+  .catch(error => {
+    alert('Signup failed: ' + error.message);
+    goBackToSignup();
+  });
     } else {
       alert(verifyData.error || 'Invalid verification code');
     }
