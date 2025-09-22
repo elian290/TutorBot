@@ -556,14 +556,6 @@ async function validateAndSaveUsername(username, avatar) {
     renderProfileHeader(profile);
     goToScreen('chatbotScreen');
   }
-  catch (e) {
-  if (e.message && e.message.includes('User not authenticated')) {
-    alert('You must be logged in to save your profile.');
-  } else {
-    alert('Failed to save profile. Please check your connection or log in again.');
-     console.error('Profile save error:', e);
-  }
-}
   finally {
     const continueBtn = document.getElementById('profileContinueBtn');
     if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
