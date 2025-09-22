@@ -489,84 +489,57 @@ function saveProfileAndContinue() {
   const avatar = avatarPreview && avatarPreview.dataset.src ? avatarPreview.dataset.src : '';
   validateAndSaveUsername(username, avatar);
 }
-
 async function validateAndSaveUsername(username, avatar) {
+  const continueBtn = document.getElementById('profileContinueBtn');
+  if (continueBtn) { continueBtn.disabled = true; continueBtn.textContent = 'Saving...'; }
+
+  // Wait for auth user during signup (retry briefly)
+  let user = auth.currentUser;
+  let tries = 0;
+  while (!user && tries < 6) {
+    await new Promise(r => setTimeout(r, 250));
+    user = auth.currentUser; tries++;
+  }
+
+  const token = user ? await getAuthToken() : null;
+  let available = true;
   try {
-    const continueBtn = document.getElementById('profileContinueBtn');
-    if (continueBtn) { continueBtn.disabled = true; continueBtn.textContent = 'Saving...'; }
-    // Wait for auth user during signup (retry briefly)
-    let user = auth.currentUser;
-    let tries = 0;
-    while (!user && tries < 6) {
-      await new Promise(r => setTimeout(r, 250));
-      user = auth.currentUser; tries++;
+    const check = await fetch(`${BACKEND_URL}/api/user-data/username-available/${encodeURIComponent(username)}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (check.status === 404) {
+      // Backend not yet updated; skip availability check
+    } else {
+      const data = await check.json();
+      available = !!data.available;
     }
-    if (!user) {
-      console.warn('Auth user not ready; proceeding with local save.');
-    }
-    const token = await getAuthToken();
-    let available = true;
-    try {
-      const check = await fetch(`${BACKEND_URL}/api/user-data/username-available/${encodeURIComponent(username)}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (check.status === 404) {
-        // Backend not yet updated; skip availability check
-        console.warn('Username availability route missing (404). Skipping check.');
-      } else {
-        const data = await check.json();
-        available = !!data.available;
-      }
-    } catch (e) {
-      console.warn('Username availability check failed. Proceeding without check.');
-    }
-    if (!available) {
-      alert('Username already exists. Please choose another.');
-      return;
-    }
-    const level = getStoredLevel() || 1;
-    const xp = getStoredXP() || 0;
-    try {
-      const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ username, avatar, level, xp })
-      });
-      if (!resp.ok) {
-        const txt = await resp.text();
-        console.warn('Profile save error:', resp.status, txt);
-        // If backend not updated or auth missing, save locally and continue
-        if (resp.status === 404 || resp.status === 401 || resp.status === 500) {
-          console.warn('Saving profile locally as fallback.');
-        } else if (resp.status === 409) {
-          alert('Username already exists. Please choose another.');
-          return;
-        } else {
-          alert('Failed to save profile on server. Using local save.');
-        }
-      }
-    } catch (e) {
-      console.warn('Profile save request failed. Using local save.', e);
-    }
-    const profile = { username, avatar, level, xp, usernameChanges: getStoredUsernameChanges() || 0 };
-    setStoredProfile(profile);
-    renderProfileHeader(profile);
-    goToScreen('chatbotScreen');
-  }
-  catch (e) {
-  if (e.message && e.message.includes('User not authenticated')) {
-    alert('You must be logged in to save your profile.');
-  } else {
-    alert('Failed to save profile. Please check your connection or log in again.');
-  }
-}
-  finally {
-    const continueBtn = document.getElementById('profileContinueBtn');
+  } catch (e) {}
+
+  if (!available) {
+    alert('Username already exists. Please choose another.');
     if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
+    return;
   }
+
+  const level = getStoredLevel() || 1;
+  const xp = getStoredXP() || 0;
+
+  // Try to save profile, but always continue to chatbot interface
+  await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ username, avatar, level, xp })
+  });
+
+  const profile = { username, avatar, level, xp, usernameChanges: getStoredUsernameChanges() || 0 };
+  setStoredProfile(profile);
+  renderProfileHeader(profile);
+  goToScreen('chatbotScreen');
+
+  if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
 }
 
 function renderProfileHeader(profile) {
