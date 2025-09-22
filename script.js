@@ -2526,6 +2526,22 @@ function openModal(modalId) {
   }
 }
 
+// Add click effect to feature icons
+function addFeatureIconClickEffect(iconElement) {
+  // Remove clicked class from all icons
+  document.querySelectorAll('.feature-icon').forEach(icon => {
+    icon.classList.remove('clicked');
+  });
+  
+  // Add clicked class to current icon
+  iconElement.classList.add('clicked');
+  
+  // Remove clicked class after animation
+  setTimeout(() => {
+    iconElement.classList.remove('clicked');
+  }, 200);
+}
+
 // ===== ACHIEVEMENTS SYSTEM =====
 
 const ACHIEVEMENTS = {
