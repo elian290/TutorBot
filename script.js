@@ -556,6 +556,14 @@ async function validateAndSaveUsername(username, avatar) {
     renderProfileHeader(profile);
     goToScreen('chatbotScreen');
   }
+  catch (e) {
+  if (e.message && e.message.includes('User not authenticated')) {
+    alert('You must be logged in to save your profile.');
+  } else {
+    alert('Failed to save profile. Please check your connection or log in again.');
+     console.error('Profile save error:', e);
+  }
+}
   finally {
     const continueBtn = document.getElementById('profileContinueBtn');
     if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
@@ -797,7 +805,6 @@ async function fetchProfileFromBackend() {
   try {
     const token = await getAuthToken();
     const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
-      headers: { 'Authorization': `Bearer ${token}` }
     });
     if (resp.ok) {
       const profile = await resp.json();
