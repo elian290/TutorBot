@@ -31,8 +31,11 @@
     .avatar-section{min-width:220px}
     .avatar-preview{width:96px;height:96px;border-radius:50%;background:#e5e7eb;border:2px dashed #cbd5e1;margin-bottom:10px;background-position:center;background-size:cover}
     .avatar-actions button{margin-right:6px}
-    .avatar-defaults{display:grid;grid-template-columns:repeat(6,36px);gap:8px;margin-top:8px}
-    .avatar-defaults .icon{width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;border:1px solid #e5e7eb}
+    .avatar-chooser{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-top:8px;color:#111}
+    .chooser-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .chooser-actions button{margin-left:6px}
+    .avatar-defaults{display:grid;grid-template-columns:repeat(auto-fill, minmax(44px, 1fr));gap:8px;max-height:200px;overflow:auto}
+    .avatar-defaults .icon{width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;border:1px solid #e5e7eb;background:#f8fafc}
     .username-section{min-width:220px;flex:1}
     .username-section input{width:100%;padding:10px;border-radius:8px;border:2px solid #e5e7eb}
     .hint{font-size:0.8em;color:#64748b;margin-top:6px}
@@ -379,20 +382,25 @@
     <h2>Set Up Your Profile</h2>
     <div class="profile-setup">
       <div class="avatar-section">
-        <div id="profileAvatarPreview" class="avatar-preview" title="Avatar"></div>
-        <div class="avatar-actions">
-          <button onclick="openAvatarDefaults()">🎨 Choose Icon</button>
-          <input type="file" id="avatarFileUpload" accept="image/*" style="display:none;" onchange="handleAvatarFileUpload(event)">
-          <button onclick="document.getElementById('avatarFileUpload').click()">📁 Upload</button>
-          <button onclick="openAvatarCamera()">📸 Take Photo</button>
-        </div>
-        <div id="avatarDefaults" class="avatar-defaults" style="display:none;"></div>
-        <div id="avatarCamera" class="avatar-camera" style="display:none;">
-          <video id="avatarCameraStream" autoplay muted></video>
-          <canvas id="avatarCameraCanvas" style="display:none;"></canvas>
-          <div class="camera-buttons" style="margin-top:8px;">
-            <button onclick="captureAvatarImage()">Capture</button>
-            <button onclick="closeAvatarCamera()">Close</button>
+        <div id="profileAvatarPreview" class="avatar-preview" title="Click to choose avatar" onclick="toggleAvatarChooser()"></div>
+        <input type="file" id="avatarFileUpload" accept="image/*" style="display:none;" onchange="handleAvatarFileUpload(event)">
+        <div id="avatarChooser" class="avatar-chooser" style="display:none;">
+          <div class="chooser-header">
+            <span>Choose an avatar</span>
+            <div class="chooser-actions">
+              <button title="Upload" onclick="document.getElementById('avatarFileUpload').click()">📁</button>
+              <button title="Camera" onclick="openAvatarCamera()">📸</button>
+              <button title="Close" onclick="toggleAvatarChooser()">✖</button>
+            </div>
+          </div>
+          <div id="avatarDefaults" class="avatar-defaults"></div>
+          <div id="avatarCamera" class="avatar-camera" style="display:none;margin-top:8px;">
+            <video id="avatarCameraStream" autoplay muted style="width:100%;border-radius:8px;"></video>
+            <canvas id="avatarCameraCanvas" style="display:none;"></canvas>
+            <div class="camera-buttons" style="margin-top:8px;display:flex;gap:8px;">
+              <button onclick="captureAvatarImage()">Capture</button>
+              <button onclick="closeAvatarCamera()">Close Camera</button>
+            </div>
           </div>
         </div>
       </div>
