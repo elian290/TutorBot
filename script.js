@@ -419,16 +419,37 @@ function saveProfileAndContinue() {
   const usernameInput = document.getElementById('usernameInput');
   const username = (usernameInput && usernameInput.value.trim()) || 'User';
   const avatar = avatarPreview && avatarPreview.dataset.src ? avatarPreview.dataset.src : '';
-  const profile = {
-    username,
-    avatar,
-    level: getStoredLevel() || 1,
-    xp: getStoredXP() || 0,
-    usernameChanges: getStoredUsernameChanges() || 0
-  };
-  setStoredProfile(profile);
-  renderProfileHeader(profile);
-  goToScreen('chatbotScreen');
+  validateAndSaveUsername(username, avatar);
+}
+
+async function validateAndSaveUsername(username, avatar) {
+  try {
+    const token = await getAuthToken();
+    const check = await fetch(`${BACKEND_URL}/api/user-data/username-available/${encodeURIComponent(username)}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const { available } = await check.json();
+    if (!available) {
+      alert('Username already exists. Please choose another.');
+      return;
+    }
+    const level = getStoredLevel() || 1;
+    const xp = getStoredXP() || 0;
+    await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ username, avatar, level, xp })
+    });
+    const profile = { username, avatar, level, xp, usernameChanges: getStoredUsernameChanges() || 0 };
+    setStoredProfile(profile);
+    renderProfileHeader(profile);
+    goToScreen('chatbotScreen');
+  } catch (e) {
+    alert('Failed to save profile. Please try again.');
+  }
 }
 
 function renderProfileHeader(profile) {
