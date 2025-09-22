@@ -1156,21 +1156,21 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
 }
 
 async function getResponse() {
+  console.log('getResponse() called');
   const responseBox = document.getElementById('response');
 
   if (!checkUsage('responses', DAILY_LIMITS.responses, 'TutorBot responses', responseBox)) {
+      console.log('Usage limit reached');
       return;
   }
 
   const subject = document.getElementById('subject').value;
   const question = document.getElementById('question').value.trim();
-
-
-  if (!question) {
-
+  console.log('Subject:', subject, 'Question:', question);
 
   if (!question) {
       responseBox.innerText = "Please enter your question in the 'Your Question' box.";
+      responseBox.style.display = 'block';
       return;
   }
 
@@ -1180,7 +1180,7 @@ async function getResponse() {
       promptText += ` After your detailed explanation, provide a simpler, more concise explanation for easier understanding, clearly labeled "Simplified Version:".`;
   }
 
-  
+  console.log('Calling Gemini API...');
   const promptParts = [{ text: promptText }];
   const answer = await callGeminiAPI(promptParts, responseBox, "Thinking deeply for your answer...");
   if (answer) {
@@ -1189,8 +1189,10 @@ async function getResponse() {
       updateSpeechControlButtons(); 
       updateUsage('responses'); 
       awardXP(50);
+      console.log('Response generated successfully');
+  } else {
+      console.log('No answer received from API');
   }
-}
 }
 async function generateFlashcards() {
   const flashcardBox = document.getElementById('flashcard-box');
