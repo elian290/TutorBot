@@ -561,6 +561,7 @@ async function validateAndSaveUsername(username, avatar) {
     alert('You must be logged in to save your profile.');
   } else {
     alert('Failed to save profile. Please check your connection or log in again.');
+     console.error('Profile save error:', e);
   }
 }
   finally {
