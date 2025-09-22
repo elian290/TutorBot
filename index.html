@@ -14,6 +14,33 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
+    /* Profile Header */
+    .profile-header{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);padding:10px 12px;border-radius:12px;margin-bottom:12px}
+    .ph-left{display:flex;gap:10px;align-items:center}
+    .ph-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)}
+    .ph-username{font-weight:600}
+    .ph-plan{font-size:0.8em;color:#94a3b8}
+    .ph-right{text-align:right}
+    .ph-level{font-weight:600;margin-bottom:4px}
+    .ph-xpbar{width:160px;height:8px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden}
+    .ph-xpfill{height:100%;background:#22c55e}
+    .ph-xptext{font-size:0.75em;color:#94a3b8;margin-top:2px}
+
+    /* Profile Setup */
+    .profile-setup{display:flex;gap:16px;flex-wrap:wrap}
+    .avatar-section{min-width:220px}
+    .avatar-preview{width:96px;height:96px;border-radius:50%;background:#e5e7eb;border:2px dashed #cbd5e1;margin-bottom:10px;background-position:center;background-size:cover}
+    .avatar-actions button{margin-right:6px}
+    .avatar-defaults{display:grid;grid-template-columns:repeat(6,36px);gap:8px;margin-top:8px}
+    .avatar-defaults .icon{width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;border:1px solid #e5e7eb}
+    .username-section{min-width:220px;flex:1}
+    .username-section input{width:100%;padding:10px;border-radius:8px;border:2px solid #e5e7eb}
+    .hint{font-size:0.8em;color:#64748b;margin-top:6px}
+
+    @media(max-width:600px){
+      .ph-xpbar{width:120px}
+      .avatar-defaults{grid-template-columns:repeat(5,36px)}
+    }
     /* Modal Content Styles */
     .modal-content {
       background: #fff;
@@ -347,9 +374,57 @@
   </div>
 </div>
 
+<div class="screen" id="profileScreen" style="display:none;">
+  <div class="container">
+    <h2>Set Up Your Profile</h2>
+    <div class="profile-setup">
+      <div class="avatar-section">
+        <div id="profileAvatarPreview" class="avatar-preview" title="Avatar"></div>
+        <div class="avatar-actions">
+          <button onclick="openAvatarDefaults()">🎨 Choose Icon</button>
+          <input type="file" id="avatarFileUpload" accept="image/*" style="display:none;" onchange="handleAvatarFileUpload(event)">
+          <button onclick="document.getElementById('avatarFileUpload').click()">📁 Upload</button>
+          <button onclick="openAvatarCamera()">📸 Take Photo</button>
+        </div>
+        <div id="avatarDefaults" class="avatar-defaults" style="display:none;"></div>
+        <div id="avatarCamera" class="avatar-camera" style="display:none;">
+          <video id="avatarCameraStream" autoplay muted></video>
+          <canvas id="avatarCameraCanvas" style="display:none;"></canvas>
+          <div class="camera-buttons" style="margin-top:8px;">
+            <button onclick="captureAvatarImage()">Capture</button>
+            <button onclick="closeAvatarCamera()">Close</button>
+          </div>
+        </div>
+      </div>
+      <div class="username-section">
+        <label>Username</label>
+        <input id="usernameInput" type="text" placeholder="Your username" />
+        <div id="usernameHint" class="hint"></div>
+      </div>
+    </div>
+    <button class="continue-btn" onclick="saveProfileAndContinue()">Continue</button>
+  </div>
+</div>
+
 <div class="screen" id="chatbotScreen">
     
   <div class="container">
+    <div class="profile-header" id="profileHeader" style="display:none;">
+      <div class="ph-left">
+        <img id="headerAvatar" class="ph-avatar" alt="Avatar" />
+        <div>
+          <div class="ph-username" id="headerUsername">User</div>
+          <div class="ph-plan" id="headerPlan">Free</div>
+        </div>
+      </div>
+      <div class="ph-right">
+        <div class="ph-level" id="headerLevel">Level 1</div>
+        <div class="ph-xpbar">
+          <div class="ph-xpfill" id="headerXpFill" style="width:0%"></div>
+        </div>
+        <div class="ph-xptext" id="headerXpText">0 / 1000 XP</div>
+      </div>
+    </div>
     <button id="upgradeButton" onclick="showUpgradePrompt()">🌟Upgrade Plan</button>
 
     <h1>TutorBot</h1>

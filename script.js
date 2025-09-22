@@ -13,6 +13,14 @@ let speechPausedTime = 0; // Track when speech was paused
 
 // For image input
 let selectedImageFile = null; // Stores the image file/blob to send to Gemini
+let avatarMediaStream = null; // For avatar camera
+
+// Profile defaults
+const DEFAULT_AVATARS = ['📘','📗','📙','📕','🧠','📝','🧪','🔬','📊','📚','🎯','⚡'];
+const PROFILE_KEY = 'tutorbotProfile';
+const USERNAME_CHANGES_KEY = 'tutorbotUsernameChanges';
+const XP_KEY = 'tutorbotXP';
+const LEVEL_KEY = 'tutorbotLevel';
 
 // Backend API URL
 const BACKEND_URL = 'https://tutorbot-backend.onrender.com';
@@ -293,6 +301,190 @@ function goToScreen(id) {
   }
 }
 
+// ---- Profile Setup & Header ----
+function getStoredProfile() {
+  const raw = localStorage.getItem(PROFILE_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+function setStoredProfile(profile) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+}
+
+function generateUsernameFromEmail(email) {
+  const base = (email || 'user').split('@')[0].replace(/[^a-zA-Z0-9]/g, '').slice(0, 12) || 'user';
+  const rand = Math.floor(Math.random() * 900 + 100);
+  return `${base}${rand}`;
+}
+
+function getPlanUsernameLimit() {
+  const plan = getUserPlan();
+  if (plan === 'premium') return 50;
+  if (plan === 'standard') return 10;
+  if (plan === 'basic') return 3;
+  return 1; // free fallback
+}
+
+function initializeProfileSetup() {
+  const avatarPreview = document.getElementById('profileAvatarPreview');
+  if (avatarPreview) avatarPreview.style.backgroundImage = '';
+  // build default icons
+  const defaults = document.getElementById('avatarDefaults');
+  if (defaults && !defaults.dataset.built) {
+    DEFAULT_AVATARS.forEach(icon => {
+      const div = document.createElement('div');
+      div.className = 'icon';
+      div.textContent = icon;
+      div.onclick = () => setAvatarFromEmoji(icon);
+      defaults.appendChild(div);
+    });
+    defaults.dataset.built = 'true';
+  }
+  // propose username
+  const input = document.getElementById('usernameInput');
+  const email = localStorage.getItem('tutorbotUserEmail') || '';
+  if (input) input.value = generateUsernameFromEmail(email);
+  const hint = document.getElementById('usernameHint');
+  if (hint) hint.textContent = `You can change your username later. Limit: ${getPlanUsernameLimit()} changes.`;
+}
+
+function openAvatarDefaults() {
+  const el = document.getElementById('avatarDefaults');
+  if (el) el.style.display = el.style.display === 'none' ? 'grid' : 'none';
+}
+
+function setAvatarFromEmoji(emoji) {
+  const avatarPreview = document.getElementById('profileAvatarPreview');
+  if (!avatarPreview) return;
+  // Render emoji on canvas to get an image URL
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,256,256);
+  ctx.font = '180px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, 128, 140);
+  const dataUrl = canvas.toDataURL('image/png');
+  avatarPreview.style.backgroundImage = `url('${dataUrl}')`;
+  avatarPreview.dataset.src = dataUrl;
+}
+
+function handleAvatarFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const url = reader.result;
+    const avatarPreview = document.getElementById('profileAvatarPreview');
+    if (avatarPreview) { avatarPreview.style.backgroundImage = `url('${url}')`; avatarPreview.dataset.src = url; }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function openAvatarCamera() {
+  const box = document.getElementById('avatarCamera');
+  const video = document.getElementById('avatarCameraStream');
+  if (!box || !video) return;
+  try {
+    avatarMediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = avatarMediaStream;
+    box.style.display = 'block';
+  } catch (e) {
+    alert('Could not access camera for avatar.');
+  }
+}
+
+function closeAvatarCamera() {
+  const box = document.getElementById('avatarCamera');
+  if (avatarMediaStream) { avatarMediaStream.getTracks().forEach(t => t.stop()); avatarMediaStream = null; }
+  if (box) box.style.display = 'none';
+}
+
+function captureAvatarImage() {
+  const video = document.getElementById('avatarCameraStream');
+  const canvas = document.getElementById('avatarCameraCanvas');
+  const avatarPreview = document.getElementById('profileAvatarPreview');
+  if (!video || !canvas || !avatarPreview) return;
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const url = canvas.toDataURL('image/jpeg', 0.9);
+  avatarPreview.style.backgroundImage = `url('${url}')`;
+  avatarPreview.dataset.src = url;
+  closeAvatarCamera();
+}
+
+function saveProfileAndContinue() {
+  const avatarPreview = document.getElementById('profileAvatarPreview');
+  const usernameInput = document.getElementById('usernameInput');
+  const username = (usernameInput && usernameInput.value.trim()) || 'User';
+  const avatar = avatarPreview && avatarPreview.dataset.src ? avatarPreview.dataset.src : '';
+  const profile = {
+    username,
+    avatar,
+    level: getStoredLevel() || 1,
+    xp: getStoredXP() || 0,
+    usernameChanges: getStoredUsernameChanges() || 0
+  };
+  setStoredProfile(profile);
+  renderProfileHeader(profile);
+  goToScreen('chatbotScreen');
+}
+
+function renderProfileHeader(profile) {
+  const header = document.getElementById('profileHeader');
+  const avatar = document.getElementById('headerAvatar');
+  const name = document.getElementById('headerUsername');
+  const plan = document.getElementById('headerPlan');
+  const levelEl = document.getElementById('headerLevel');
+  const xpFill = document.getElementById('headerXpFill');
+  const xpText = document.getElementById('headerXpText');
+  if (!header) return;
+  header.style.display = 'flex';
+  if (avatar) avatar.src = profile.avatar || '';
+  if (name) name.textContent = profile.username;
+  if (plan) plan.textContent = getUserPlan().toUpperCase();
+  const level = profile.level || 1;
+  const xp = profile.xp || 0;
+  const needed = xpNeededForLevel(level);
+  const pct = Math.max(0, Math.min(100, Math.floor((xp / needed) * 100)));
+  if (levelEl) levelEl.textContent = `Level ${level}`;
+  if (xpFill) xpFill.style.width = pct + '%';
+  if (xpText) xpText.textContent = `${xp} / ${needed} XP`;
+}
+
+function getStoredXP() { return parseInt(localStorage.getItem(XP_KEY) || '0', 10); }
+function setStoredXP(xp) { localStorage.setItem(XP_KEY, String(xp)); }
+function getStoredLevel() { return parseInt(localStorage.getItem(LEVEL_KEY) || '1', 10); }
+function setStoredLevel(level) { localStorage.setItem(LEVEL_KEY, String(level)); }
+function getStoredUsernameChanges() { return parseInt(localStorage.getItem(USERNAME_CHANGES_KEY) || '0', 10); }
+function setStoredUsernameChanges(n) { localStorage.setItem(USERNAME_CHANGES_KEY, String(n)); }
+
+function xpNeededForLevel(level) {
+  if (level <= 1) return 1000;
+  if (level === 2) return 3000;
+  // Simple growth: 3k, 6k, 10k...
+  return Math.min(50000, 1000 + level * level * 500);
+}
+
+function awardXP(amount) {
+  let xp = getStoredXP();
+  let level = getStoredLevel();
+  xp += amount;
+  let needed = xpNeededForLevel(level);
+  while (xp >= needed) {
+    xp -= needed;
+    level += 1;
+    needed = xpNeededForLevel(level);
+  }
+  setStoredXP(xp);
+  setStoredLevel(level);
+  const profile = getStoredProfile();
+  if (profile) {
+    profile.xp = xp; profile.level = level; setStoredProfile(profile); renderProfileHeader(profile);
+  }
+}
+
 // Email verification variables
 let verificationEmail = '';
 let verificationCode = '';
@@ -490,8 +682,15 @@ async function startTutorBot() {
     subjects = ['Elective Maths', 'Core Maths', 'Integrated Science', 'Social Studies', 'English Language', 'Geography','Government', 'History', 'Literature in English','Christian Religious Studies', 'French', 'Economics'];
   }
   subjectSelect.innerHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
+  // After course selection, go to profile setup if not set
+  const profile = getStoredProfile();
+  if (!profile) {
+    goToScreen('profileScreen');
+    initializeProfileSetup();
+    return;
+  }
+  renderProfileHeader(profile);
   goToScreen('chatbotScreen');
-  
   // Load user data when entering chatbot screen
   await loadUserData();
 }
@@ -644,6 +843,7 @@ async function getResponse() {
       responseBox.innerText = cleanAnswer;
       updateSpeechControlButtons(); 
       updateUsage('responses'); 
+      awardXP(50);
   }
 }
 
@@ -671,6 +871,7 @@ async function generateFlashcards() {
   if (flashcardContent) {
       flashcardBox.innerHTML = `<strong>Flashcard Generated:</strong><br>${flashcardContent}<br><br><button onclick="saveFlashcard()" class="continue-btn" style="margin-top: 10px;">💾 Save Flashcard</button>`;
       updateUsage('flashcards');
+      awardXP(20);
   }
 }
 
@@ -743,6 +944,7 @@ async function generateNotes() {
       notesBox.innerHTML = `<strong>Notes on "${notesTopic}" (${subject}):</strong><br>${notesContent}`;
       saveNotesPdfBtn.style.display = 'block'; // Show PDF button if notes generated
       updateUsage('notesGenerated'); // Increment usage count on successful generation
+      awardXP(30);
   } else {
       saveNotesPdfBtn.style.display = 'none'; // Hide if no notes
   }
@@ -842,6 +1044,7 @@ async function solvePastQuestion() {
       solutionBox.innerHTML = `<strong>Solution for WAEC Past Question:</strong><br>${solutionContent}`;
       updateUsage('imageSolutions'); 
         console.log('Solution received successfully');
+        awardXP(40);
     } else {
         solutionBox.innerText = "Failed to generate solution. Please try again.";
         solutionBox.style.display = 'block';
@@ -1642,9 +1845,9 @@ function isPlusUser() {
 // Plan selection handler
 function selectPlan(planType) {
     const planPrices = {
-        basic: 1500,    // GHS 15.00 in pesewas
-        standard: 3500, // GHS 35.00 in pesewas
-        premium: 5000   // GHS 50.00 in pesewas
+        basic: 499,    // GHS 4.99 in pesewas
+        standard: 999, // GHS 9.99 in pesewas
+        premium: 1499  // GHS 14.99 in pesewas
     };
     
     const planNames = {
