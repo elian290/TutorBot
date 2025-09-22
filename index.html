@@ -36,9 +36,9 @@
     .ap-text{font-size:.9em;color:#94a3b8}
     .avatar-actions button{margin-right:6px}
     .avatar-chooser{background:#0f172a;border:1px solid #1f2937;border-radius:12px;padding:12px;margin-top:8px;color:#e5e7eb}
-    .chooser-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-    .chooser-actions{display:flex;gap:8px}
-    .chooser-btn{background:#0ea5e9;color:#fff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
+    .chooser-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+    .chooser-actions{display:flex;flex-direction:column;gap:6px}
+    .chooser-btn{background:#0ea5e9;color:#fff;border:none;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:.85em}
     .chooser-btn.danger{background:#ef4444}
     .avatars-scroll{display:flex;overflow-x:auto;gap:10px;padding:4px 2px}
     .avatars-scroll .icon{min-width:64px;min-height:64px;border-radius:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;border:1px solid #334155;background:#111827;color:#e5e7eb;font-size:28px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
@@ -403,7 +403,6 @@
             <div class="chooser-actions">
               <button class="chooser-btn" title="Upload" onclick="document.getElementById('avatarFileUpload').click()">📁 Upload</button>
               <button class="chooser-btn" title="Camera" onclick="openAvatarCamera()">📸 Camera</button>
-              <button class="chooser-btn" title="Flip camera" onclick="toggleAvatarCameraFacing()">↺ Flip</button>
               <button class="chooser-btn danger" title="Close" onclick="toggleAvatarChooser()">✖ Close</button>
             </div>
           </div>
@@ -411,8 +410,9 @@
           <div id="avatarCamera" class="avatar-camera" style="display:none;margin-top:8px;">
             <video id="avatarCameraStream" autoplay muted playsinline style="width:100%;border-radius:8px;transform:scaleX(1);"></video>
             <canvas id="avatarCameraCanvas" style="display:none;"></canvas>
-            <div class="camera-buttons" style="margin-top:8px;display:flex;gap:8px;">
+            <div class="camera-buttons" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
               <button class="chooser-btn" onclick="captureAvatarImage()">Capture</button>
+              <button class="chooser-btn" onclick="toggleAvatarCameraFacing()">↺ Flip</button>
               <button class="chooser-btn danger" onclick="closeAvatarCamera()">Close Camera</button>
             </div>
           </div>
