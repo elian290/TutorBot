@@ -505,13 +505,22 @@ function saveProfileAndContinue() {
   const usernameInput = document.getElementById('usernameInput');
   const username = (usernameInput && usernameInput.value.trim()) || 'User';
   const avatar = avatarPreview && avatarPreview.dataset.src ? avatarPreview.dataset.src : '';
-  validateAndSaveUsername(username, avatar);
+  
+  // Get the selected course from localStorage or courseSelect element
+  let course = localStorage.getItem('tutorbotCourse');
+  if (!course) {
+    const courseSelect = document.getElementById('courseSelect');
+    course = courseSelect ? courseSelect.value : 'science';
+  }
+  
+  validateAndSaveUsername(username, avatar, course);
 }
 
-async function validateAndSaveUsername(username, avatar) {
+async function validateAndSaveUsername(username, avatar, course) {
   try {
     const continueBtn = document.getElementById('profileContinueBtn');
     if (continueBtn) { continueBtn.disabled = true; continueBtn.textContent = 'Saving...'; }
+    
     // Wait for auth user during signup (retry briefly)
     let user = auth.currentUser;
     let tries = 0;
@@ -522,61 +531,62 @@ async function validateAndSaveUsername(username, avatar) {
     if (!user) {
       console.warn('Auth user not ready; proceeding with local save.');
     }
-    const token = await getAuthToken();
-    let available = true;
+    
+    // Check username availability
     try {
+      const token = await getAuthToken();
       const check = await fetch(`${BACKEND_URL}/api/user-data/username-available/${encodeURIComponent(username)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (check.status === 404) {
-        // Backend not yet updated; skip availability check
         console.warn('Username availability route missing (404). Skipping check.');
       } else {
         const data = await check.json();
-        available = !!data.available;
+        if (!data.available) {
+          alert('Username already exists. Please choose another.');
+          return;
+        }
       }
     } catch (e) {
       console.warn('Username availability check failed. Proceeding without check.');
     }
-    if (!available) {
-      alert('Username already exists. Please choose another.');
-      return;
-    }
-    const level = getStoredLevel() || 1;
-    const xp = getStoredXP() || 0;
+    
+    // Save complete profile to backend
     try {
-      const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ username, avatar, level, xp })
-      });
-      if (!resp.ok) {
-        const txt = await resp.text();
-        console.warn('Profile save error:', resp.status, txt);
-        // If backend not updated or auth missing, save locally and continue
-        if (resp.status === 404 || resp.status === 401 || resp.status === 500) {
-          console.warn('Saving profile locally as fallback.');
-        } else if (resp.status === 409) {
-          alert('Username already exists. Please choose another.');
-          return;
-        } else {
-          alert('Failed to save profile on server. Using local save.');
-        }
-      }
-    } catch (e) {
-      console.warn('Profile save request failed. Using local save.', e);
+      await saveCompleteProfile(username, avatar, course);
+      console.log('Profile saved successfully');
+    } catch (error) {
+      console.warn('Failed to save complete profile:', error);
     }
-    const profile = { username, avatar, level, xp, usernameChanges: getStoredUsernameChanges() || 0 };
-    setStoredProfile(profile);
+    
+    // Set up subjects for the selected course
+    const subjectSelect = document.getElementById('subject');
+    let subjects = [];
+    if (course === 'science') {
+      subjects = ['Core Maths', 'Physics', 'Chemistry', 'Biology', 'Elective Maths', 'Social Studies', 'Integrated Science', 'English Language'];
+    } else if (course === 'business') {
+      subjects = ['Economics', 'Financial Accounting','Business Management', 'Elective Maths', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
+    } else if (course === 'visualArts') {
+      subjects = ['Visual Arts', 'Graphic Design', 'General Knowledge in Art', 'Elective Maths', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
+    } else if (course === 'generalArts') {
+      subjects = ['Literature', 'History', 'Geography', 'Government', 'Economics', 'Christian Religious Studies', 'Islamic Studies', 'French', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
+    }
+    if (subjectSelect) {
+      subjectSelect.innerHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
+    }
+    
+    // Render profile header and go to chatbot
+    const profile = { username, avatar, level: getStoredLevel() || 1, xp: getStoredXP() || 0, course, usernameChanges: getStoredUsernameChanges() || 0 };
     renderProfileHeader(profile);
     goToScreen('chatbotScreen');
+    
+    // Load user data
+    await loadUserData();
+    
   } catch (e) {
-    alert('Failed to save profile. Please log in and try again.');
-  }
-  finally {
+    console.error('Error in validateAndSaveUsername:', e);
+    alert('Failed to save profile. Please try again.');
+  } finally {
     const continueBtn = document.getElementById('profileContinueBtn');
     if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
   }
@@ -618,7 +628,7 @@ function xpNeededForLevel(level) {
   return Math.min(50000, 1000 + level * level * 500);
 }
 
-function awardXP(amount) {
+async function awardXP(amount) {
   let xp = getStoredXP();
   let level = getStoredLevel();
   xp += amount;
@@ -632,7 +642,26 @@ function awardXP(amount) {
   setStoredLevel(level);
   const profile = getStoredProfile();
   if (profile) {
-    profile.xp = xp; profile.level = level; setStoredProfile(profile); renderProfileHeader(profile);
+    profile.xp = xp; 
+    profile.level = level; 
+    setStoredProfile(profile); 
+    renderProfileHeader(profile);
+    
+    // Sync XP and level to backend
+    try {
+      const token = await getAuthToken();
+      await fetch(`${BACKEND_URL}/api/user-data/update-xp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ xp, level })
+      });
+      console.log('XP and level synced to backend');
+    } catch (error) {
+      console.warn('Failed to sync XP to backend:', error);
+    }
   }
 }
 
@@ -799,18 +828,154 @@ async function loginUser() {
     const password = document.getElementById('loginPassword').value.trim();
     try {
       await auth.signInWithEmailAndPassword(email, password);
-      localStorage.setItem('tutorbotUserEmail', auth.currentUser.email); // Store email after login
+      localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
+      
       // Clear any previously cached profile for other users
       try {
-        const uid = auth.currentUser.uid;
-        // Nothing to clear explicitly due to scoping keys, but ensure header resets
         const header = document.getElementById('profileHeader');
         if (header) header.style.display = 'none';
       } catch {}
+      
+      // Check if user has complete profile on backend
+      try {
+        const userProfile = await loadUserProfile();
+        if (userProfile && userProfile.username && userProfile.course) {
+          console.log('Existing user with complete profile, going directly to chatbot');
+          
+          // Set up the course subjects
+          const course = userProfile.course;
+          const subjectSelect = document.getElementById('subject');
+          let subjects = [];
+          if (course === 'science') {
+            subjects = ['Core Maths', 'Physics', 'Chemistry', 'Biology', 'Elective Maths', 'Social Studies', 'Integrated Science', 'English Language'];
+          } else if (course === 'business') {
+            subjects = ['Economics', 'Financial Accounting','Business Management', 'Elective Maths', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
+          } else if (course === 'visualArts') {
+            subjects = ['Visual Arts', 'Graphic Design', 'General Knowledge in Art', 'Elective Maths', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
+          } else if (course === 'generalArts') {
+            subjects = ['Literature', 'History', 'Geography', 'Government', 'Economics', 'Christian Religious Studies', 'Islamic Studies', 'French', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
+          }
+          if (subjectSelect) {
+            subjectSelect.innerHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
+          }
+          
+          renderProfileHeader(userProfile);
+          goToScreen('chatbotScreen');
+          await loadUserData();
+          return;
+        }
+      } catch (error) {
+        console.warn('Failed to load user profile on login:', error);
+      }
+      
+      // If no complete profile, go to course selection
+      console.log('No complete profile found, going to course selection');
       goToScreen('courseScreen');
     } catch (error) {
       document.getElementById('loginError').innerText = error.message;
     }
+}
+
+async function saveCourseSelection(course) {
+  try {
+    const token = await getAuthToken();
+    const response = await fetch(`${BACKEND_URL}/api/user-data/course`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ course })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to save course selection');
+    }
+    
+    console.log('Course selection saved:', course);
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving course selection:', error);
+    // Fallback to localStorage
+    localStorage.setItem('tutorbotCourse', course);
+    throw error;
+  }
+}
+
+async function loadUserProfile() {
+  try {
+    const token = await getAuthToken();
+    const response = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log('No user profile found on backend');
+        return null;
+      }
+      throw new Error('Failed to load user profile');
+    }
+    
+    const profile = await response.json();
+    console.log('User profile loaded from backend:', profile);
+    
+    // Store locally as cache
+    setStoredProfile(profile);
+    if (profile.level) setStoredLevel(profile.level);
+    if (profile.xp) setStoredXP(profile.xp);
+    
+    return profile;
+  } catch (error) {
+    console.error('Error loading user profile:', error);
+    // Fallback to localStorage
+    return getStoredProfile();
+  }
+}
+
+async function saveCompleteProfile(username, avatar, course) {
+  try {
+    const token = await getAuthToken();
+    const level = getStoredLevel() || 1;
+    const xp = getStoredXP() || 0;
+    
+    const profileData = {
+      username,
+      avatar,
+      course,
+      level,
+      xp
+    };
+    
+    const response = await fetch(`${BACKEND_URL}/api/user-data/complete-profile`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(profileData)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to save complete profile');
+    }
+    
+    console.log('Complete profile saved to backend');
+    
+    // Also save locally
+    const profile = { username, avatar, level, xp, course, usernameChanges: getStoredUsernameChanges() || 0 };
+    setStoredProfile(profile);
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving complete profile:', error);
+    // Fallback to local save
+    const profile = { username, avatar, level: getStoredLevel() || 1, xp: getStoredXP() || 0, course, usernameChanges: getStoredUsernameChanges() || 0 };
+    setStoredProfile(profile);
+    throw error;
+  }
 }
 
 async function loadUserData() {
@@ -827,7 +992,17 @@ async function loadUserData() {
 }
 
 async function startTutorBot() {
+  console.log('startTutorBot called');
   const course = document.getElementById('courseSelect').value;
+  console.log('Selected course:', course);
+  
+  // Store course selection on backend
+  try {
+    await saveCourseSelection(course);
+  } catch (error) {
+    console.warn('Failed to save course selection:', error);
+  }
+  
   const subjectSelect = document.getElementById('subject');
   let subjects = [];
   if (course === 'science') {
@@ -835,23 +1010,32 @@ async function startTutorBot() {
   } else if (course === 'business') {
     subjects = ['Economics', 'Financial Accounting','Business Management', 'Elective Maths', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
   } else if (course === 'visualArts') {
-    subjects = ['Leatherwork', 'Elective Maths', 'Sculpture','Basketry', 'Graphic Design', 'Picture Making', 'Ceramics', 'Textiles'];
+    subjects = ['Visual Arts', 'Graphic Design', 'General Knowledge in Art', 'Elective Maths', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
   } else if (course === 'generalArts') {
-    subjects = ['Elective Maths', 'Core Maths', 'Integrated Science', 'Social Studies', 'English Language', 'Geography','Government', 'History', 'Literature in English','Christian Religious Studies', 'French', 'Economics'];
+    subjects = ['Literature', 'History', 'Geography', 'Government', 'Economics', 'Christian Religious Studies', 'Islamic Studies', 'French', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
   }
   subjectSelect.innerHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
-  // After course selection, go to profile setup if not set
-  const profile = getStoredProfile();
-  if (!profile || !profile.username) {
-    goToScreen('profileScreen');
-    initializeProfileSetup();
-    return;
+  
+  // Check if user has complete profile on backend
+  try {
+    const userProfile = await loadUserProfile();
+    if (userProfile && userProfile.username && userProfile.course) {
+      console.log('User has complete profile, going to chatbot');
+      renderProfileHeader(userProfile);
+      goToScreen('chatbotScreen');
+      await loadUserData();
+      return;
+    }
+  } catch (error) {
+    console.warn('Failed to load user profile:', error);
   }
-  renderProfileHeader(profile);
-  goToScreen('chatbotScreen');
-  // Load user data when entering chatbot screen
-  await loadUserData();
+  
+  // If no complete profile, go to profile setup
+  console.log('No complete profile found, going to profile setup');
+  goToScreen('profileScreen');
+  initializeProfileSetup();
 }
+
 function stopProcess() {
     if (abortController) {
         abortController.abort();
@@ -1007,7 +1191,7 @@ async function getResponse() {
       awardXP(50);
   }
 }
-
+}
 async function generateFlashcards() {
   const flashcardBox = document.getElementById('flashcard-box');
 
@@ -2311,4 +2495,4 @@ async function testAPIConnection() {
     }
     
     console.log('=== API Test Complete ===');
-}}
+}
