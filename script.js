@@ -14,6 +14,7 @@ let speechPausedTime = 0; // Track when speech was paused
 // For image input
 let selectedImageFile = null; // Stores the image file/blob to send to Gemini
 let avatarMediaStream = null; // For avatar camera
+let avatarFacingMode = 'user';
 
 // Profile defaults
 const DEFAULT_AVATARS = ['📘','📗','📙','📕','🧠','📝','🧪','🔬','📊','📚','🎯','⚡'];
@@ -433,7 +434,7 @@ async function openAvatarCamera() {
   const video = document.getElementById('avatarCameraStream');
   if (!box || !video) return;
   try {
-    avatarMediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    avatarMediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: avatarFacingMode } });
     video.srcObject = avatarMediaStream;
     box.style.display = 'block';
   } catch (e) {
@@ -445,6 +446,19 @@ function closeAvatarCamera() {
   const box = document.getElementById('avatarCamera');
   if (avatarMediaStream) { avatarMediaStream.getTracks().forEach(t => t.stop()); avatarMediaStream = null; }
   if (box) box.style.display = 'none';
+}
+
+async function toggleAvatarCameraFacing() {
+  avatarFacingMode = avatarFacingMode === 'user' ? 'environment' : 'user';
+  if (avatarMediaStream) {
+    closeAvatarCamera();
+    await openAvatarCamera();
+    const video = document.getElementById('avatarCameraStream');
+    if (video) {
+      // Mirror selfie on user front camera for natural POV
+      video.style.transform = avatarFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+    }
+  }
 }
 
 function captureAvatarImage() {
