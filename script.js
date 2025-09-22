@@ -757,6 +757,7 @@ async function verifyAndSignup() {
         setStoredProfile(profile);
         renderProfileHeader(profile);
         goToScreen('chatbotScreen');
+        await startTutorBot();
       } else {
         goToScreen('profileScreen');
         initializeProfileSetup();
@@ -814,6 +815,7 @@ async function fetchProfileFromBackend() {
       setStoredProfile(profile); // Save to localStorage for quick access
       renderProfileHeader(profile);
       goToScreen('chatbotScreen');
+      await startTutorBot();
     } else {
       // No profile found, prompt setup
       goToScreen('profileScreen');
