@@ -22,6 +22,16 @@ const USERNAME_CHANGES_KEY = 'tutorbotUsernameChanges';
 const XP_KEY = 'tutorbotXP';
 const LEVEL_KEY = 'tutorbotLevel';
 
+function getUserScopedKey(baseKey) {
+  try {
+    const user = auth && auth.currentUser;
+    const uid = user && user.uid ? user.uid : (localStorage.getItem('tutorbotUserEmail') || 'guest');
+    return `${baseKey}:${uid}`;
+  } catch {
+    return `${baseKey}:guest`;
+  }
+}
+
 // Backend API URL
 const BACKEND_URL = 'https://tutorbot-backend.onrender.com';
 
@@ -303,13 +313,13 @@ function goToScreen(id) {
 
 // ---- Profile Setup & Header ----
 function getStoredProfile() {
-  const raw = localStorage.getItem(PROFILE_KEY);
+  const raw = localStorage.getItem(getUserScopedKey(PROFILE_KEY));
   if (!raw) return null;
   try { return JSON.parse(raw); } catch { return null; }
 }
 
 function setStoredProfile(profile) {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  localStorage.setItem(getUserScopedKey(PROFILE_KEY), JSON.stringify(profile));
 }
 
 function generateUsernameFromEmail(email) {
@@ -474,12 +484,12 @@ function renderProfileHeader(profile) {
   if (xpText) xpText.textContent = `${xp} / ${needed} XP`;
 }
 
-function getStoredXP() { return parseInt(localStorage.getItem(XP_KEY) || '0', 10); }
-function setStoredXP(xp) { localStorage.setItem(XP_KEY, String(xp)); }
-function getStoredLevel() { return parseInt(localStorage.getItem(LEVEL_KEY) || '1', 10); }
-function setStoredLevel(level) { localStorage.setItem(LEVEL_KEY, String(level)); }
-function getStoredUsernameChanges() { return parseInt(localStorage.getItem(USERNAME_CHANGES_KEY) || '0', 10); }
-function setStoredUsernameChanges(n) { localStorage.setItem(USERNAME_CHANGES_KEY, String(n)); }
+function getStoredXP() { return parseInt(localStorage.getItem(getUserScopedKey(XP_KEY)) || '0', 10); }
+function setStoredXP(xp) { localStorage.setItem(getUserScopedKey(XP_KEY), String(xp)); }
+function getStoredLevel() { return parseInt(localStorage.getItem(getUserScopedKey(LEVEL_KEY)) || '1', 10); }
+function setStoredLevel(level) { localStorage.setItem(getUserScopedKey(LEVEL_KEY), String(level)); }
+function getStoredUsernameChanges() { return parseInt(localStorage.getItem(getUserScopedKey(USERNAME_CHANGES_KEY)) || '0', 10); }
+function setStoredUsernameChanges(n) { localStorage.setItem(getUserScopedKey(USERNAME_CHANGES_KEY), String(n)); }
 
 function xpNeededForLevel(level) {
   if (level <= 1) return 1000;
@@ -670,6 +680,13 @@ async function loginUser() {
     try {
       await auth.signInWithEmailAndPassword(email, password);
       localStorage.setItem('tutorbotUserEmail', auth.currentUser.email); // Store email after login
+      // Clear any previously cached profile for other users
+      try {
+        const uid = auth.currentUser.uid;
+        // Nothing to clear explicitly due to scoping keys, but ensure header resets
+        const header = document.getElementById('profileHeader');
+        if (header) header.style.display = 'none';
+      } catch {}
       goToScreen('courseScreen');
     } catch (error) {
       document.getElementById('loginError').innerText = error.message;
@@ -705,7 +722,7 @@ async function startTutorBot() {
   subjectSelect.innerHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
   // After course selection, go to profile setup if not set
   const profile = getStoredProfile();
-  if (!profile) {
+  if (!profile || !profile.username) {
     goToScreen('profileScreen');
     initializeProfileSetup();
     return;
@@ -1033,30 +1050,30 @@ async function solvePastQuestion() {
     } else {
       // Handle image files
       console.log('Processing image file...');
-      const base64Image = await fileToBase64(selectedImageFile);
-      if (!base64Image) {
-        solutionBox.innerText = "Failed to process image. Please try again with a different image.";
+  const base64Image = await fileToBase64(selectedImageFile);
+  if (!base64Image) {
+      solutionBox.innerText = "Failed to process image. Please try again with a different image.";
         solutionBox.style.display = 'block';
-        return;
+      return;
       }
       base64Data = base64Image;
       mimeType = selectedImageFile.type;
-    }
+  }
 
     console.log('File processed, sending to API...');
 
-    const promptText = `You are a highly experienced SHS teacher in Ghana specializing in ${subject}. Analyze the image provided, which contains a WAEC past question. Provide a detailed, step-by-step solution or explanation for this question. Your answer should be comprehensive, accurate, and structured in a way that matches typical WAEC mark schemes, clearly showing working or reasoning, suitable for a Ghanaian SHS student.`;
+  const promptText = `You are a highly experienced SHS teacher in Ghana specializing in ${subject}. Analyze the image provided, which contains a WAEC past question. Provide a detailed, step-by-step solution or explanation for this question. Your answer should be comprehensive, accurate, and structured in a way that matches typical WAEC mark schemes, clearly showing working or reasoning, suitable for a Ghanaian SHS student.`;
 
-    // Multimodal prompt: array of parts including text and image
-    const promptParts = [
-        { text: promptText },
-        {
-            inlineData: {
+  // Multimodal prompt: array of parts including text and image
+  const promptParts = [
+      { text: promptText },
+      {
+          inlineData: {
                 mimeType: mimeType,
                 data: base64Data.split(',')[1] // Get base64 data after 'data:image/jpeg;base64,'
-            }
-        }
-    ];
+          }
+      }
+  ];
 
     console.log('Sending multimodal request to API...');
   const solutionContent = await callGeminiAPI(promptParts, solutionBox, "Analyzing image and preparing detailed WAEC solution...");
@@ -1655,7 +1672,7 @@ function captureImage() {
       clearImageBtn.style.display = 'block';
     
       // Re-enable file upload button
-      document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
+    document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
       
       // Re-enable camera button
       document.querySelector('.image-input-controls button:nth-of-type(1)').disabled = false;
@@ -1709,7 +1726,7 @@ async function handleFileUpload(event) {
   video.style.display = 'none';
   cameraButtons.style.display = 'none';
   document.getElementById('fileUpload').value = ''; 
-  
+
   // Clear any previous solution
   solutionBox.style.display = 'none';
 
@@ -1719,10 +1736,10 @@ async function handleFileUpload(event) {
 
       if (file.type.startsWith('image/')) {
         // Handle image files
-        const resizedBlob = await resizeImage(file, 1024);
-        selectedImageFile = resizedBlob;
-        imagePreview.src = URL.createObjectURL(selectedImageFile);
-        imagePreview.style.display = 'block';
+      const resizedBlob = await resizeImage(file, 1024);
+      selectedImageFile = resizedBlob;
+      imagePreview.src = URL.createObjectURL(selectedImageFile);
+      imagePreview.style.display = 'block';
       } else if (file.type === 'application/pdf') {
         // Handle PDF files
         selectedImageFile = file; // Store PDF file directly
