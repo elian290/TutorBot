@@ -524,34 +524,27 @@ async function validateAndSaveUsername(username, avatar) {
   const level = getStoredLevel() || 1;
   const xp = getStoredXP() || 0;
 
-  // Add a timeout for the profile save request
-  let timedOut = false;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-    timedOut = true;
-  }, 10000); // 10 seconds
-
+  // Save profile to backend and always move to chatbot screen
+  let profile = { username, avatar, level, xp, usernameChanges: getStoredUsernameChanges() || 0 };
   try {
-    await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+    const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ username, avatar, level, xp }),
-      signal: controller.signal
+      body: JSON.stringify({ username, avatar, level, xp })
     });
+    if (resp.ok) {
+      profile = await resp.json();
+    }
   } catch (e) {
     // Ignore errors, always continue
-  } finally {
-    clearTimeout(timeoutId);
-    const profile = { username, avatar, level, xp, usernameChanges: getStoredUsernameChanges() || 0 };
-    setStoredProfile(profile);
-    renderProfileHeader(profile);
-    goToScreen('chatbotScreen');
-    if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
   }
+  setStoredProfile(profile);
+  renderProfileHeader(profile);
+  goToScreen('chatbotScreen');
+  if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
 }
 function renderProfileHeader(profile) {
   const header = document.getElementById('profileHeader');
