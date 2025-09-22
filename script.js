@@ -2523,6 +2523,13 @@ function openModal(modalId) {
   if (modal) {
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    
+    // Add click outside to close functionality
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        closeModal(modalId);
+      }
+    });
   }
 }
 
