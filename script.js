@@ -317,16 +317,28 @@ function setButtonsDisabled(disabled) {
     updateSpeechControlButtons();
 }
 
-
-
+/**
+ * Navigate to a specific screen in the app.
+ * @param {string} id - The ID of the screen to navigate to.
+ */
 function goToScreen(id) {
+  console.log('goToScreen called with id:', id);
+  
+  const targetScreen = document.getElementById(id);
+  if (!targetScreen) {
+    console.error('Screen with id ' + id + ' not found!');
+    return;
+  }
+  
+  // Hide all screens
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  // Show requested screen
+  targetScreen.classList.add('active');
+  
   if (id === 'chatbotScreen') {
-      initializeDailyUsage(); 
+    // Place any on-enter-chatbot logic here if needed
   }
 }
-
 // ---- Profile Setup & Header ----
 function getStoredProfile() {
   const raw = localStorage.getItem(getUserScopedKey(PROFILE_KEY));
@@ -2158,6 +2170,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize speech buttons on load
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM Content Loaded - TutorBot initializing...');
+  
+  // Test if goToScreen function is available
+  if (typeof goToScreen === 'function') {
+    console.log('goToScreen function is available');
+  } else {
+    console.error('goToScreen function is NOT available');
+  }
+  
   initializeDailyUsage(); // Load daily usage immediately
   updateSpeechControlButtons();
   
@@ -2166,6 +2187,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Add click outside to close modal
   addModalClickOutsideHandler();
+  
+  console.log('TutorBot initialization complete');
 });
 
 // Add click outside modal to close functionality
@@ -2288,4 +2311,4 @@ async function testAPIConnection() {
     }
     
     console.log('=== API Test Complete ===');
-}
+}}
