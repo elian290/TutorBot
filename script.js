@@ -344,13 +344,7 @@ function generateUsernameFromEmail(email) {
   return `${base}${rand}`;
 }
 
-function getPlanUsernameLimit() {
-  const plan = getUserPlan();
-  if (plan === 'premium') return 50;
-  if (plan === 'standard') return 10;
-  if (plan === 'basic') return 3;
-  return 1; // free fallback
-}
+
 
 function initializeProfileSetup() {
   const avatarPreview = document.getElementById('profileAvatarPreview');
@@ -561,9 +555,14 @@ async function validateAndSaveUsername(username, avatar) {
     setStoredProfile(profile);
     renderProfileHeader(profile);
     goToScreen('chatbotScreen');
-  } catch (e) {
-    alert('Failed to save profile. Please log in and try again.');
   }
+  catch (e) {
+  if (e.message && e.message.includes('User not authenticated')) {
+    alert('You must be logged in to save your profile.');
+  } else {
+    alert('Failed to save profile. Please check your connection or log in again.');
+  }
+}
   finally {
     const continueBtn = document.getElementById('profileContinueBtn');
     if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
@@ -2008,7 +2007,13 @@ function getUserPlan() {
     }
     return plan;
 }
-
+function getPlanUsernameLimit() {
+  const plan = getUserPlan();
+  if (plan === 'premium') return 50;
+  if (plan === 'standard') return 10;
+  if (plan === 'basic') return 3;
+  return 1; // free fallback
+}
 // Helper: Checking if user is Plus (for backward compatibility)
 function isPlusUser() {
     return getUserPlan() === 'premium';
