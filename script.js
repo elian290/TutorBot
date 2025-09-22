@@ -344,7 +344,13 @@ function generateUsernameFromEmail(email) {
   return `${base}${rand}`;
 }
 
-
+function getPlanUsernameLimit() {
+  const plan = getUserPlan();
+  if (plan === 'premium') return 50;
+  if (plan === 'standard') return 10;
+  if (plan === 'basic') return 3;
+  return 1; // free fallback
+}
 
 function initializeProfileSetup() {
   const avatarPreview = document.getElementById('profileAvatarPreview');
@@ -489,68 +495,79 @@ function saveProfileAndContinue() {
   const avatar = avatarPreview && avatarPreview.dataset.src ? avatarPreview.dataset.src : '';
   validateAndSaveUsername(username, avatar);
 }
+
 async function validateAndSaveUsername(username, avatar) {
-  const continueBtn = document.getElementById('profileContinueBtn');
-  if (continueBtn) { continueBtn.disabled = true; continueBtn.textContent = 'Saving...'; }
-
-  // Wait for auth user during signup (retry briefly)
-  let user = auth.currentUser;
-  let tries = 0;
-  while (!user && tries < 6) {
-    await new Promise(r => setTimeout(r, 250));
-    user = auth.currentUser; tries++;
-  }
-
-  const token = user ? await getAuthToken() : null;
-  let available = true;
   try {
-    const check = await fetch(`${BACKEND_URL}/api/user-data/username-available/${encodeURIComponent(username)}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (check.status === 404) {
-      // Backend not yet updated; skip availability check
-    } else {
-      const data = await check.json();
-      available = !!data.available;
+    const continueBtn = document.getElementById('profileContinueBtn');
+    if (continueBtn) { continueBtn.disabled = true; continueBtn.textContent = 'Saving...'; }
+    // Wait for auth user during signup (retry briefly)
+    let user = auth.currentUser;
+    let tries = 0;
+    while (!user && tries < 6) {
+      await new Promise(r => setTimeout(r, 250));
+      user = auth.currentUser; tries++;
     }
-  } catch (e) {}
-
-  if (!available) {
-    alert('Username already exists. Please choose another.');
-    if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
-    return;
-  }
-
-  const level = getStoredLevel() || 1;
-  const xp = getStoredXP() || 0;
-
-  // Save profile to backend and always move to chatbot screen
-  let profile = { username, avatar, level, xp, usernameChanges: getStoredUsernameChanges() || 0 };
-  try {
-    const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ username, avatar, level, xp })
-    });
-    if (resp.ok) {
-      profile = await resp.json();
+    if (!user) {
+      console.warn('Auth user not ready; proceeding with local save.');
     }
+    const token = await getAuthToken();
+    let available = true;
+    try {
+      const check = await fetch(`${BACKEND_URL}/api/user-data/username-available/${encodeURIComponent(username)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (check.status === 404) {
+        // Backend not yet updated; skip availability check
+        console.warn('Username availability route missing (404). Skipping check.');
+      } else {
+        const data = await check.json();
+        available = !!data.available;
+      }
+    } catch (e) {
+      console.warn('Username availability check failed. Proceeding without check.');
+    }
+    if (!available) {
+      alert('Username already exists. Please choose another.');
+      return;
+    }
+    const level = getStoredLevel() || 1;
+    const xp = getStoredXP() || 0;
+    try {
+      const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ username, avatar, level, xp })
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        console.warn('Profile save error:', resp.status, txt);
+        // If backend not updated or auth missing, save locally and continue
+        if (resp.status === 404 || resp.status === 401 || resp.status === 500) {
+          console.warn('Saving profile locally as fallback.');
+        } else if (resp.status === 409) {
+          alert('Username already exists. Please choose another.');
+          return;
+        } else {
+          alert('Failed to save profile on server. Using local save.');
+        }
+      }
+    } catch (e) {
+      console.warn('Profile save request failed. Using local save.', e);
+    }
+    const profile = { username, avatar, level, xp, usernameChanges: getStoredUsernameChanges() || 0 };
+    setStoredProfile(profile);
+    renderProfileHeader(profile);
+    goToScreen('chatbotScreen');
   } catch (e) {
-    // Ignore errors, always continue
+    alert('Failed to save profile. Please log in and try again.');
   }
-  setStoredProfile(profile);
-  renderProfileHeader(profile);
-  goToScreen('chatbotScreen');
-  if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
-}
-
-function getUserPlan() {
-  // You can customize this logic as needed
-  // For now, just return 'free' or use localStorage if you have plan info
-  return localStorage.getItem('tutorbotPlan') || 'free';
+  finally {
+    const continueBtn = document.getElementById('profileContinueBtn');
+    if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
+  }
 }
 
 function renderProfileHeader(profile) {
@@ -743,34 +760,15 @@ async function verifyAndSignup() {
         `;
       }
       
-    auth.createUserWithEmailAndPassword(verificationEmail, password)
-  .then(async () => {
-    localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
-    // After signup, always check for profile in backend
-    const token = await auth.currentUser.getIdToken();
-    const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (resp.ok) {
-      const profile = await resp.json();
-      if (profile && profile.username) {
-        setStoredProfile(profile);
-        renderProfileHeader(profile);
-        goToScreen('chatbotScreen');
-        await startTutorBot();
-      } else {
-        goToScreen('profileScreen');
-        initializeProfileSetup();
-      }
-    } else {
-      goToScreen('profileScreen');
-      initializeProfileSetup();
-    }
-  })
-  .catch(error => {
-    alert('Signup failed: ' + error.message);
-    goBackToSignup();
-  });
+      auth.createUserWithEmailAndPassword(verificationEmail, password)
+        .then(() => {
+          localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
+          goToScreen('courseScreen');
+        })
+        .catch(error => {
+          alert('Signup failed: ' + error.message);
+          goBackToSignup();
+        });
     } else {
       alert(verifyData.error || 'Invalid verification code');
     }
@@ -797,35 +795,10 @@ async function loginUser() {
         const header = document.getElementById('profileHeader');
         if (header) header.style.display = 'none';
       } catch {}
-     await fetchProfileFromBackend();
+      goToScreen('courseScreen');
     } catch (error) {
       document.getElementById('loginError').innerText = error.message;
     }
-}
-
-async function fetchProfileFromBackend() {
-  try {
-    const token = await getAuthToken();
-    const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (resp.ok) {
-      const profile = await resp.json();
-      console.log('Profile response:', profile);
-      setStoredProfile(profile); // Save to localStorage for quick access
-      renderProfileHeader(profile);
-      goToScreen('chatbotScreen');
-      await startTutorBot();
-    } else {
-      // No profile found, prompt setup
-      goToScreen('profileScreen');
-      initializeProfileSetup();
-    }
-  } catch (e) {
-    // If backend fails, fallback to local profile setup
-    goToScreen('profileScreen');
-    initializeProfileSetup();
-  }
 }
 
 async function loadUserData() {
@@ -857,13 +830,13 @@ async function startTutorBot() {
   subjectSelect.innerHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
   // After course selection, go to profile setup if not set
   const profile = getStoredProfile();
-    if (!profile || !profile.username) {
-  // Try to fetch from backend before prompting setup
-  await fetchProfileFromBackend();
-  return;
-}
-renderProfileHeader(profile);
-goToScreen('chatbotScreen');
+  if (!profile || !profile.username) {
+    goToScreen('profileScreen');
+    initializeProfileSetup();
+    return;
+  }
+  renderProfileHeader(profile);
+  goToScreen('chatbotScreen');
   // Load user data when entering chatbot screen
   await loadUserData();
 }
@@ -2012,13 +1985,7 @@ function getUserPlan() {
     }
     return plan;
 }
-function getPlanUsernameLimit() {
-  const plan = getUserPlan();
-  if (plan === 'premium') return 50;
-  if (plan === 'standard') return 10;
-  if (plan === 'basic') return 3;
-  return 1; // free fallback
-}
+
 // Helper: Checking if user is Plus (for backward compatibility)
 function isPlusUser() {
     return getUserPlan() === 'premium';
@@ -2321,5 +2288,4 @@ async function testAPIConnection() {
     }
     
     console.log('=== API Test Complete ===');
-}
 }
