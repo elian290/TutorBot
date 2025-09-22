@@ -1,3 +1,4 @@
+
 // Global variables
 let savedAnswers = [];
 let savedFlashcards = [];
