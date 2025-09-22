@@ -561,7 +561,6 @@ async function validateAndSaveUsername(username, avatar) {
     alert('You must be logged in to save your profile.');
   } else {
     alert('Failed to save profile. Please check your connection or log in again.');
-     console.error('Profile save error:', e);
   }
 }
   finally {
@@ -805,9 +804,11 @@ async function fetchProfileFromBackend() {
   try {
     const token = await getAuthToken();
     const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
     if (resp.ok) {
       const profile = await resp.json();
+      console.log('Profile response:', profile);
       setStoredProfile(profile); // Save to localStorage for quick access
       renderProfileHeader(profile);
       goToScreen('chatbotScreen');
