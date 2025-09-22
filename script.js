@@ -1189,6 +1189,11 @@ async function getResponse() {
       updateSpeechControlButtons(); 
       updateUsage('responses'); 
       awardXP(50);
+      
+      // Update achievement stats
+      updateAchievementStat('questionsAsked');
+      updateAchievementStat('dailyQuestions');
+      
       console.log('Response generated successfully');
   } else {
       console.log('No answer received from API');
@@ -1219,6 +1224,9 @@ async function generateFlashcards() {
       flashcardBox.innerHTML = `<strong>Flashcard Generated:</strong><br>${flashcardContent}<br><br><button onclick="saveFlashcard()" class="continue-btn" style="margin-top: 10px;">💾 Save Flashcard</button>`;
       updateUsage('flashcards');
       awardXP(20);
+      
+      // Update achievement stats
+      updateAchievementStat('flashcardsGenerated');
   }
 }
 
@@ -2497,4 +2505,356 @@ async function testAPIConnection() {
     }
     
     console.log('=== API Test Complete ===');
+}
+
+// ===== FEATURE SYSTEM =====
+
+// Modal Management
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
+
+function openModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+// ===== ACHIEVEMENTS SYSTEM =====
+
+const ACHIEVEMENTS = {
+  // Beginner Achievements (Easy - 25-50 XP)
+  first_question: { name: "First Steps", description: "Ask your first question", xp: 25, icon: "🌟", difficulty: "easy" },
+  first_flashcard: { name: "Memory Master", description: "Generate your first flashcard", xp: 25, icon: "🧠", difficulty: "easy" },
+  first_quiz: { name: "Quiz Rookie", description: "Complete your first quiz", xp: 30, icon: "📝", difficulty: "easy" },
+  first_notes: { name: "Note Taker", description: "Generate your first notes", xp: 25, icon: "📚", difficulty: "easy" },
+  first_save: { name: "Collector", description: "Save your first answer", xp: 20, icon: "💾", difficulty: "easy" },
+  
+  // Intermediate Achievements (Medium - 75-150 XP)
+  question_streak_5: { name: "Curious Mind", description: "Ask 5 questions in a day", xp: 75, icon: "🤔", difficulty: "medium" },
+  quiz_master_5: { name: "Quiz Champion", description: "Complete 5 quizzes", xp: 100, icon: "🏆", difficulty: "medium" },
+  perfect_quiz: { name: "Perfect Score", description: "Get 100% on a quiz", xp: 150, icon: "💯", difficulty: "medium" },
+  flashcard_creator: { name: "Card Creator", description: "Generate 10 flashcards", xp: 100, icon: "🎴", difficulty: "medium" },
+  note_scholar: { name: "Scholar", description: "Generate notes on 5 different topics", xp: 125, icon: "🎓", difficulty: "medium" },
+  
+  // Advanced Achievements (Hard - 200-500 XP)
+  question_master_50: { name: "Question Master", description: "Ask 50 questions", xp: 300, icon: "🧙‍♂️", difficulty: "hard" },
+  quiz_legend: { name: "Quiz Legend", description: "Complete 25 quizzes", xp: 400, icon: "👑", difficulty: "hard" },
+  knowledge_seeker: { name: "Knowledge Seeker", description: "Use all TutorBot features", xp: 250, icon: "🔍", difficulty: "hard" },
+  streak_warrior: { name: "Streak Warrior", description: "Use TutorBot for 7 consecutive days", xp: 500, icon: "🔥", difficulty: "hard" },
+  subject_expert: { name: "Subject Expert", description: "Ask questions in all subjects", xp: 350, icon: "🎯", difficulty: "hard" }
+};
+
+let userAchievements = JSON.parse(localStorage.getItem('userAchievements') || '{}');
+let achievementStats = JSON.parse(localStorage.getItem('achievementStats') || '{}');
+
+function checkAchievement(achievementId) {
+  if (userAchievements[achievementId]) return; // Already unlocked
+  
+  const achievement = ACHIEVEMENTS[achievementId];
+  if (!achievement) return;
+  
+  let unlocked = false;
+  
+  // Check achievement conditions
+  switch(achievementId) {
+    case 'first_question':
+      unlocked = (achievementStats.questionsAsked || 0) >= 1;
+      break;
+    case 'first_flashcard':
+      unlocked = (achievementStats.flashcardsGenerated || 0) >= 1;
+      break;
+    case 'first_quiz':
+      unlocked = (achievementStats.quizzesCompleted || 0) >= 1;
+      break;
+    case 'first_notes':
+      unlocked = (achievementStats.notesGenerated || 0) >= 1;
+      break;
+    case 'first_save':
+      unlocked = (achievementStats.answersSaved || 0) >= 1;
+      break;
+    case 'question_streak_5':
+      unlocked = (achievementStats.dailyQuestions || 0) >= 5;
+      break;
+    case 'quiz_master_5':
+      unlocked = (achievementStats.quizzesCompleted || 0) >= 5;
+      break;
+    case 'perfect_quiz':
+      unlocked = (achievementStats.perfectQuizzes || 0) >= 1;
+      break;
+    case 'flashcard_creator':
+      unlocked = (achievementStats.flashcardsGenerated || 0) >= 10;
+      break;
+    case 'note_scholar':
+      unlocked = (achievementStats.uniqueTopics || 0) >= 5;
+      break;
+    case 'question_master_50':
+      unlocked = (achievementStats.questionsAsked || 0) >= 50;
+      break;
+    case 'quiz_legend':
+      unlocked = (achievementStats.quizzesCompleted || 0) >= 25;
+      break;
+    case 'knowledge_seeker':
+      unlocked = (achievementStats.featuresUsed || 0) >= 6;
+      break;
+    case 'subject_expert':
+      unlocked = (achievementStats.subjectsUsed || 0) >= 8;
+      break;
+  }
+  
+  if (unlocked) {
+    unlockAchievement(achievementId);
+  }
+}
+
+function unlockAchievement(achievementId) {
+  const achievement = ACHIEVEMENTS[achievementId];
+  userAchievements[achievementId] = {
+    unlockedAt: new Date().toISOString(),
+    ...achievement
+  };
+  
+  localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
+  
+  // Award XP
+  awardXP(achievement.xp);
+  
+  // Show achievement notification
+  showAchievementNotification(achievement);
+  
+  console.log(` Achievement Unlocked: ${achievement.name} (+${achievement.xp} XP)`);
+}
+
+function showAchievementNotification(achievement) {
+  const notification = document.createElement('div');
+  notification.className = 'achievement-notification';
+  notification.innerHTML = `
+    <div class="achievement-content">
+      <div class="achievement-icon">${achievement.icon}</div>
+      <div class="achievement-text">
+        <div class="achievement-title">Achievement Unlocked!</div>
+        <div class="achievement-name">${achievement.name}</div>
+        <div class="achievement-xp">+${achievement.xp} XP</div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // Animate in
+  setTimeout(() => notification.classList.add('show'), 100);
+  
+  // Remove after 4 seconds
+  setTimeout(() => {
+    notification.classList.remove('show');
+    setTimeout(() => notification.remove(), 300);
+  }, 4000);
+}
+
+function updateAchievementStat(stat, increment = 1) {
+  achievementStats[stat] = (achievementStats[stat] || 0) + increment;
+  localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
+  
+  // Check all achievements after updating stats
+  Object.keys(ACHIEVEMENTS).forEach(checkAchievement);
+}
+
+function openAchievements() {
+  openModal('achievementsModal');
+  loadAchievementsContent();
+}
+
+function loadAchievementsContent() {
+  const content = document.getElementById('achievementsContent');
+  const unlockedCount = Object.keys(userAchievements).length;
+  const totalCount = Object.keys(ACHIEVEMENTS).length;
+  
+  let html = `
+    <div class="achievements-header">
+      <div class="progress-summary">
+        <h3>Progress: ${unlockedCount}/${totalCount} Achievements</h3>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${(unlockedCount/totalCount)*100}%"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="achievements-grid">
+  `;
+  
+  Object.entries(ACHIEVEMENTS).forEach(([id, achievement]) => {
+    const isUnlocked = userAchievements[id];
+    const difficultyClass = achievement.difficulty;
+    
+    html += `
+      <div class="achievement-card ${isUnlocked ? 'unlocked' : 'locked'} ${difficultyClass}">
+        <div class="achievement-icon">${achievement.icon}</div>
+        <div class="achievement-info">
+          <h4>${achievement.name}</h4>
+          <p>${achievement.description}</p>
+          <div class="achievement-xp">+${achievement.xp} XP</div>
+          ${isUnlocked ? `<div class="unlock-date">Unlocked: ${new Date(isUnlocked.unlockedAt).toLocaleDateString()}</div>` : ''}
+        </div>
+        <div class="difficulty-badge ${difficultyClass}">${achievement.difficulty}</div>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  content.innerHTML = html;
+}
+
+// ===== LEADERBOARD SYSTEM =====
+function openLeaderboard() {
+  openModal('leaderboardModal');
+  document.getElementById('leaderboardContent').innerHTML = `
+    <div class="leaderboard-tabs">
+      <button class="tab-btn active" onclick="switchLeaderboardTab('global')">🌍 Global</button>
+      <button class="tab-btn" onclick="switchLeaderboardTab('friends')">👥 Friends</button>
+    </div>
+    <div id="globalLeaderboard" class="leaderboard-section">
+      ${generateSampleLeaderboard()}
+    </div>
+    <div id="friendsLeaderboard" class="leaderboard-section" style="display: none;">
+      <p>Add friends to see friends leaderboard!</p>
+    </div>
+  `;
+}
+
+function generateSampleLeaderboard() {
+  const currentUser = getStoredProfile();
+  const currentXP = getStoredXP();
+  return `
+    <div class="leaderboard-list">
+      <div class="leaderboard-item top-1">
+        <div class="rank">🥇</div>
+        <div class="user-info">
+          <div class="avatar">🎓</div>
+          <div class="username">StudyMaster2024</div>
+        </div>
+        <div class="xp">15,420 XP</div>
+      </div>
+      <div class="leaderboard-item current-user">
+        <div class="rank">#4</div>
+        <div class="user-info">
+          <div class="avatar">${currentUser?.avatar || '👤'}</div>
+          <div class="username">${currentUser?.username || 'You'}</div>
+        </div>
+        <div class="xp">${currentXP || 0} XP</div>
+      </div>
+    </div>
+  `;
+}
+
+// ===== GAMES SYSTEM =====
+function openGames() {
+  openModal('gamesModal');
+  document.getElementById('gamesContent').innerHTML = `
+    <div class="games-header">
+      <h3>🎮 Educational Games</h3>
+      <p>Play games to learn and earn XP!</p>
+    </div>
+    <div class="games-grid">
+      <div class="game-card" onclick="playGame('math_quiz')">
+        <div class="game-icon">🔢</div>
+        <div class="game-info">
+          <h5>Math Quiz</h5>
+          <p>Test your math skills</p>
+          <span class="xp-reward">+50 XP</span>
+        </div>
+      </div>
+      <div class="game-card" onclick="playGame('science_lab')">
+        <div class="game-icon">🧪</div>
+        <div class="game-info">
+          <h5>Science Lab</h5>
+          <p>Virtual experiments</p>
+          <span class="xp-reward">+60 XP</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function playGame(gameId) {
+  alert(`Starting ${gameId}! This will be implemented with full game mechanics.`);
+  awardXP(50);
+  updateAchievementStat('gamesPlayed');
+}
+
+// ===== FRIENDS SYSTEM =====
+function openFriends() {
+  openModal('friendsModal');
+  document.getElementById('friendsContent').innerHTML = `
+    <div class="friends-header">
+      <h3>👥 Friends</h3>
+      <div class="friend-search">
+        <input type="text" id="friendSearch" placeholder="Search username...">
+        <button onclick="searchFriend()">Add Friend</button>
+      </div>
+    </div>
+    <div class="friends-list">
+      <p>No friends yet. Search and add friends to compete!</p>
+    </div>
+  `;
+}
+
+function searchFriend() {
+  const username = document.getElementById('friendSearch').value.trim();
+  if (username) {
+    alert(`Friend request sent to ${username}!`);
+  }
+}
+
+// ===== SETTINGS SYSTEM =====
+function openSettings() {
+  openModal('settingsModal');
+  document.getElementById('settingsContent').innerHTML = `
+    <div class="settings-sections">
+      <div class="setting-item">
+        <h4>Profile Settings</h4>
+        <button onclick="editProfile()">Edit Profile</button>
+      </div>
+      <div class="setting-item">
+        <h4>Theme</h4>
+        <select onchange="changeTheme(this.value)">
+          <option value="dark">Dark Theme</option>
+          <option value="light">Light Theme</option>
+        </select>
+      </div>
+    </div>
+  `;
+}
+
+function editProfile() {
+  alert('Profile editing will be implemented!');
+}
+
+function changeTheme(theme) {
+  alert(`Theme changed to ${theme}!`);
+}
+
+// ===== HELP SYSTEM =====
+function openHelp() {
+  openModal('helpModal');
+  document.getElementById('helpContent').innerHTML = `
+    <div class="help-sections">
+      <div class="faq-section">
+        <h3>Frequently Asked Questions</h3>
+        <div class="faq-item">
+          <h4>How do I earn XP?</h4>
+          <p>Ask questions, generate flashcards, complete quizzes, and play games!</p>
+        </div>
+        <div class="faq-item">
+          <h4>What are achievements?</h4>
+          <p>Complete challenges to unlock achievements and earn bonus XP!</p>
+        </div>
+      </div>
+    </div>
+  `;
 }

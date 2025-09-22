@@ -452,6 +452,34 @@
       </div>
     </div>
 
+    <!-- Feature Navigation Icons -->
+    <div class="feature-nav" id="featureNav">
+      <div class="feature-icon" onclick="openAchievements()" title="Achievements">
+        <div class="icon">🏆</div>
+        <span>Achievements</span>
+      </div>
+      <div class="feature-icon" onclick="openLeaderboard()" title="Leaderboard">
+        <div class="icon">📊</div>
+        <span>Leaderboard</span>
+      </div>
+      <div class="feature-icon" onclick="openGames()" title="Games">
+        <div class="icon">🎮</div>
+        <span>Games</span>
+      </div>
+      <div class="feature-icon" onclick="openFriends()" title="Friends">
+        <div class="icon">👥</div>
+        <span>Friends</span>
+      </div>
+      <div class="feature-icon" onclick="openSettings()" title="Settings">
+        <div class="icon">⚙️</div>
+        <span>Settings</span>
+      </div>
+      <div class="feature-icon" onclick="openHelp()" title="Help">
+        <div class="icon">❓</div>
+        <span>Help</span>
+      </div>
+    </div>
+
     <h1>TutorBot</h1>
     <p class="sub">Your Ultimate SHS AI Assistant</p>
 
@@ -622,6 +650,86 @@
     </div>
     
     <button onclick="closeUpgradeModal()" class="exit-btn" style="width:200px;">Cancel</button>
+  </div>
+</div>
+
+<!-- Feature Modals -->
+
+<!-- Achievements Modal -->
+<div id="achievementsModal" class="feature-modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🏆 Achievements</h2>
+      <span class="close-btn" onclick="closeModal('achievementsModal')">&times;</span>
+    </div>
+    <div class="modal-body" id="achievementsContent">
+      <!-- Achievements content will be loaded here -->
+    </div>
+  </div>
+</div>
+
+<!-- Leaderboard Modal -->
+<div id="leaderboardModal" class="feature-modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>📊 Leaderboard</h2>
+      <span class="close-btn" onclick="closeModal('leaderboardModal')">&times;</span>
+    </div>
+    <div class="modal-body" id="leaderboardContent">
+      <!-- Leaderboard content will be loaded here -->
+    </div>
+  </div>
+</div>
+
+<!-- Games Modal -->
+<div id="gamesModal" class="feature-modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🎮 Games</h2>
+      <span class="close-btn" onclick="closeModal('gamesModal')">&times;</span>
+    </div>
+    <div class="modal-body" id="gamesContent">
+      <!-- Games content will be loaded here -->
+    </div>
+  </div>
+</div>
+
+<!-- Friends Modal -->
+<div id="friendsModal" class="feature-modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>👥 Friends</h2>
+      <span class="close-btn" onclick="closeModal('friendsModal')">&times;</span>
+    </div>
+    <div class="modal-body" id="friendsContent">
+      <!-- Friends content will be loaded here -->
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="feature-modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>⚙️ Settings</h2>
+      <span class="close-btn" onclick="closeModal('settingsModal')">&times;</span>
+    </div>
+    <div class="modal-body" id="settingsContent">
+      <!-- Settings content will be loaded here -->
+    </div>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div id="helpModal" class="feature-modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>❓ Help & Support</h2>
+      <span class="close-btn" onclick="closeModal('helpModal')">&times;</span>
+    </div>
+    <div class="modal-body" id="helpContent">
+      <!-- Help content will be loaded here -->
+    </div>
   </div>
 </div>
 
