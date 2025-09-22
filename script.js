@@ -497,6 +497,18 @@ function saveProfileAndContinue() {
 
 async function validateAndSaveUsername(username, avatar) {
   try {
+    const continueBtn = document.getElementById('profileContinueBtn');
+    if (continueBtn) { continueBtn.disabled = true; continueBtn.textContent = 'Saving...'; }
+    // Wait for auth user during signup (retry briefly)
+    let user = auth.currentUser;
+    let tries = 0;
+    while (!user && tries < 6) {
+      await new Promise(r => setTimeout(r, 250));
+      user = auth.currentUser; tries++;
+    }
+    if (!user) {
+      console.warn('Auth user not ready; proceeding with local save.');
+    }
     const token = await getAuthToken();
     let available = true;
     try {
@@ -550,6 +562,10 @@ async function validateAndSaveUsername(username, avatar) {
     goToScreen('chatbotScreen');
   } catch (e) {
     alert('Failed to save profile. Please log in and try again.');
+  }
+  finally {
+    const continueBtn = document.getElementById('profileContinueBtn');
+    if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = 'Continue'; }
   }
 }
 
