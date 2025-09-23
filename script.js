@@ -3343,6 +3343,7 @@ async function renderMyFriends(container) {
       container.innerHTML = '<p>No friends yet. Go to Add Friends to connect!</p>';
       return;
     }
+
     container.innerHTML = `
       <div class="friends-list">
         ${friends.map(f => friendListItemHtml(f)).join('')}
@@ -3503,20 +3504,6 @@ async function removeFriend(friendUserId) {
   }
 }
 
-async function viewFriendProfile(userId) {
-  try {
-    const resp = await friendsApi(`/profile/${userId}`);
-    if (!resp.ok) throw new Error('Failed to load profile');
-    const data = await resp.json();
-    const p = data.profile || {};
-    const level = p.level || 1;
-    const xp = p.xp || 0;
-    alert(`Friend Profile\nUsername: ${p.username || ''}\nLevel: ${level}\nXP: ${xp}`);
-  } catch (e) {
-    alert('Failed to load profile: ' + e.message);
-  }
-}
-
 async function openMessageThread(withUserId, username) {
   const container = document.getElementById('friendsTabContent');
   if (!container) return;
@@ -3656,6 +3643,7 @@ try {
   window.saveSettingsAvatar = window.saveSettingsAvatar || saveSettingsAvatar;
   window.logoutToSignup = window.logoutToSignup || logoutToSignup;
   window.showToast = window.showToast || showToast;
+  window.resolveExamIcon = window.resolveExamIcon || resolveExamIcon;
 } catch {}
 
 async function saveSettingsAvatar() {
