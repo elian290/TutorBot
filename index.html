@@ -590,7 +590,6 @@
     </div>
   </div>
 </div>
-</div>
 
 <!-- Upgrade Modal -->
 <div id="upgradeModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.7); z-index:9999; justify-content:center; align-items:flex-start; overflow-y:auto; padding:10px;">
@@ -732,6 +731,22 @@
     </div>
   </div>
 </div>
+
+<!-- Friend Profile Modal -->
+<div id="friendProfileModal" class="feature-modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>👤 Friend Profile</h2>
+      <button class="close-btn" onclick="closeModal('friendProfileModal')">Cancel</button>
+    </div>
+    <div class="modal-body" id="friendProfileContent">
+      <!-- Friend profile content will be loaded here -->
+    </div>
+  </div>
+</div>
+
+<!-- Toast/Notifications Container -->
+<div id="notificationsContainer" style="position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:99999;"></div>
 
 </body>
 </html>
