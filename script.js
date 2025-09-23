@@ -33,6 +33,20 @@ const DEFAULT_AVATAR_SVGS = [
   'svg/turn-off-svgrepo-com.svg',
   'svg/umbrella-svgrepo-com.svg'
 ];
+
+// Helper to render avatar values properly (emoji vs. image path/URL)
+function renderAvatar(avatar) {
+  const val = typeof avatar === 'string' ? avatar.trim() : '';
+  if (!val) return '👤';
+  const isImg = /\.(svg|png|jpg|jpeg|gif|webp)$/i.test(val) || val.startsWith('http') || val.startsWith('data:') || val.startsWith('svg/');
+  if (isImg) {
+    const safeSrc = val.replace(/"/g, '&quot;');
+    return `<img src="${safeSrc}" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">`;
+  }
+  // Otherwise assume it's an emoji or short text icon
+  return val || '👤';
+}
+
 const PROFILE_KEY = 'tutorbotProfile';
 const USERNAME_CHANGES_KEY = 'tutorbotUsernameChanges';
 const XP_KEY = 'tutorbotXP';
@@ -3167,13 +3181,25 @@ function renderLeaderboardList(entries, highlightUid) {
     return '<p>No data to display.</p>';
   }
   const sorted = [...entries].sort((a,b) => (b.totalXP||0) - (a.totalXP||0));
+  const safeRender = (val) => {
+    try {
+      if (typeof renderAvatar === 'function') return renderAvatar(val);
+    } catch {}
+    const s = (typeof val === 'string' ? val.trim() : '') || '👤';
+    const isImg = /\.(svg|png|jpg|jpeg|gif|webp)$/i.test(s) || s.startsWith('http') || s.startsWith('data:') || s.startsWith('svg/');
+    if (isImg) {
+      const safeSrc = s.replace(/"/g, '&quot;');
+      return `<img src="${safeSrc}" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">`;
+    }
+    return s || '👤';
+  };
   return `
     <div class="leaderboard-list">
       ${sorted.map((u, idx) => `
         <div class="leaderboard-item ${u.userId===highlightUid?'current-user':''}">
           <div class="rank">${idx+1}</div>
           <div class="user-info">
-            <div class="avatar">${renderAvatar(u.avatar || '👤')}</div>
+            <div class="avatar">${safeRender(u.avatar || '👤')}</div>
             <div class="username">${u.username || '(unknown)'}</div>
           </div>
           <div class="xp">${u.totalXP || 0} XP</div>
@@ -3358,7 +3384,7 @@ function friendListItemHtml(f) {
   return `
     <div class="friend-item" data-uid="${userId}" style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:10px;margin:6px 0;">
       <div style="display:flex;align-items:center;gap:10px;">
-        <div class="avatar">${avatar}</div>
+        <div class="avatar">${renderAvatar(avatar)}</div>
         <div class="name">${username}</div>
         <button class="info-btn" title="View profile" onclick="viewFriendProfile('${userId}')">ℹ️</button>
       </div>
@@ -3430,7 +3456,7 @@ async function searchFriend() {
     if (resultBox) resultBox.innerHTML = `
       <div class="search-item" style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:10px;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <div class="avatar">${p.avatar || '👤'}</div>
+          <div class="avatar">${renderAvatar(p.avatar || '👤')}</div>
           <div class="name">${p.username || username}</div>
         </div>
         <div>
