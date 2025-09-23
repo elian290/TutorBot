@@ -3655,6 +3655,7 @@ try {
   window.openAvatarCameraDialog = window.openAvatarCameraDialog || openAvatarCameraDialog;
   window.saveSettingsAvatar = window.saveSettingsAvatar || saveSettingsAvatar;
   window.logoutToSignup = window.logoutToSignup || logoutToSignup;
+  window.showToast = window.showToast || showToast;
 } catch {}
 
 async function saveSettingsAvatar() {

@@ -357,7 +357,7 @@
       color: #e5e7eb;
       text-align: center;
       user-select: none;
-      cursor: not-allowed;
+      cursor: pointer;
       transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
     }
     .exam-tile:hover {
@@ -365,10 +365,8 @@
       background: rgba(255,255,255,0.08);
       border-color: rgba(255,255,255,0.12);
     }
-    .exam-icon {
-      font-size: 28px;
-      line-height: 1;
-    }
+    .exam-icon { line-height: 1; }
+    .exam-icon img { width: 36px; height: 36px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25)); }
     .exam-label {
       font-weight: 600;
       letter-spacing: 0.5px;
@@ -633,34 +631,34 @@
     
     <!-- Exam Shortcuts (Locked) -->
     <div class="exam-shortcuts" id="examShortcuts">
-      <div class="exam-tile" onclick="alert('Coming soon!')" title="SAT (Coming soon)">
+      <div class="exam-tile" onclick="showToast('SAT is coming soon!')" title="SAT (Coming soon)">
         <div class="lock">🔒</div>
-        <div class="exam-icon">🧠</div>
+        <div class="exam-icon"><img src="icons/sat.png" alt="SAT"></div>
         <div class="exam-label">SAT</div>
       </div>
-      <div class="exam-tile" onclick="alert('Coming soon!')" title="ACT (Coming soon)">
+      <div class="exam-tile" onclick="showToast('ACT is coming soon!')" title="ACT (Coming soon)">
         <div class="lock">🔒</div>
-        <div class="exam-icon">📘</div>
+        <div class="exam-icon"><img src="icons/act.png" alt="ACT"></div>
         <div class="exam-label">ACT</div>
       </div>
-      <div class="exam-tile" onclick="alert('Coming soon!')" title="GRE (Coming soon)">
+      <div class="exam-tile" onclick="showToast('GRE is coming soon!')" title="GRE (Coming soon)">
         <div class="lock">🔒</div>
-        <div class="exam-icon">📈</div>
+        <div class="exam-icon"><img src="icons/gre.png" alt="GRE"></div>
         <div class="exam-label">GRE</div>
       </div>
-      <div class="exam-tile" onclick="alert('Coming soon!')" title="CAM (Coming soon)">
+      <div class="exam-tile" onclick="showToast('CAM is coming soon!')" title="CAM (Coming soon)">
         <div class="lock">🔒</div>
-        <div class="exam-icon">📷</div>
+        <div class="exam-icon"><img src="icons/cam.png" alt="CAM"></div>
         <div class="exam-label">CAM</div>
       </div>
-      <div class="exam-tile" onclick="alert('Coming soon!')" title="NSMQ (Coming soon)">
+      <div class="exam-tile" onclick="showToast('NSMQ is coming soon!')" title="NSMQ (Coming soon)">
         <div class="lock">🔒</div>
-        <div class="exam-icon">🏆</div>
+        <div class="exam-icon"><img src="icons/nsmq.png" alt="NSMQ"></div>
         <div class="exam-label">NSMQ</div>
       </div>
-      <div class="exam-tile" onclick="alert('Coming soon!')" title="SHARKS (Coming soon)">
+      <div class="exam-tile" onclick="showToast('SHARKS is coming soon!')" title="SHARKS (Coming soon)">
         <div class="lock">🔒</div>
-        <div class="exam-icon">🦈</div>
+        <div class="exam-icon"><img src="icons/sharks.png" alt="SHARKS"></div>
         <div class="exam-label">SHARKS</div>
       </div>
     </div>
