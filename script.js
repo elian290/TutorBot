@@ -3579,29 +3579,213 @@ async function openChallenge(toUserId, username) {
 // ===== SETTINGS SYSTEM =====
 function openSettings() {
   openModal('settingsModal');
-  document.getElementById('settingsContent').innerHTML = `
-    <div class="settings-sections">
-      <div class="setting-item">
-        <h4>Profile Settings</h4>
-        <button onclick="editProfile()">Edit Profile</button>
+  renderSettingsProfile();
+}
+
+function renderSettingsProfile() {
+  const container = document.getElementById('settingsContent');
+  if (!container) return;
+  const p = getStoredProfile() || {};
+  const username = p.username || '';
+  const avatar = p.avatar || '👤';
+  container.innerHTML = `
+    <div class="settings-profile" style="display:flex;flex-direction:column;gap:16px;">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div id="settingsAvatarPreview" style="width:96px;height:96px;border-radius:16px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          ${renderAvatar(avatar).replaceAll('24px','96px')}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div id="settingsUsernameDisplay" style="font-size:18px;font-weight:600;">${username}</div>
+            <button id="settingsEditNameBtn" title="Edit username" style="padding:6px 8px;">✏️</button>
+          </div>
+          <div id="settingsUsernameEdit" style="display:none;align-items:center;gap:8px;">
+            <input id="settingsUsernameInput" type="text" value="${username}" placeholder="new username" style="padding:8px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;">
+            <button id="settingsSaveNameBtn">Save</button>
+            <div id="settingsUsernameAvail" style="font-size:12px;color:#6b7280;"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button id="settingsChangeAvatarBtn">Change Avatar</button>
+            <input id="settingsAvatarUrl" type="text" placeholder="Emoji or Image URL" style="flex:1;padding:8px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;">
+            <input id="settingsAvatarFile" type="file" accept="image/*" style="display:none;">
+            <button id="settingsUploadAvatarBtn">Upload</button>
+            <button id="settingsSaveAvatarBtn" style="background:#2563eb;color:#fff;">Save Avatar</button>
+          </div>
+        </div>
       </div>
-      <div class="setting-item">
-        <h4>Theme</h4>
-        <select onchange="changeTheme(this.value)">
-          <option value="dark">Dark Theme</option>
-          <option value="light">Light Theme</option>
-        </select>
+
+      <div style="margin-top:4px;">
+        <button id="settingsLogoutBtn" style="background:#ef4444;color:#fff;padding:10px 14px;border:none;border-radius:8px;">Log out</button>
       </div>
     </div>
   `;
+
+  // Wire events
+  const editBtn = document.getElementById('settingsEditNameBtn');
+  if (editBtn) editBtn.onclick = startEditSettingsUsername;
+  const saveNameBtn = document.getElementById('settingsSaveNameBtn');
+  if (saveNameBtn) saveNameBtn.onclick = saveSettingsUsername;
+  const nameInput = document.getElementById('settingsUsernameInput');
+  if (nameInput) nameInput.oninput = debounce(checkUsernameAvailability, 300);
+
+  const changeAv = document.getElementById('settingsChangeAvatarBtn');
+  if (changeAv) changeAv.onclick = () => {
+    const urlInput = document.getElementById('settingsAvatarUrl');
+    if (urlInput) urlInput.focus();
+  };
+  const uploadBtn = document.getElementById('settingsUploadAvatarBtn');
+  const fileInput = document.getElementById('settingsAvatarFile');
+  if (uploadBtn && fileInput) {
+    uploadBtn.onclick = () => fileInput.click();
+    fileInput.onchange = onSettingsAvatarFileSelected;
+  }
+  // Clicking the avatar also opens file chooser
+  const avatarPrev = document.getElementById('settingsAvatarPreview');
+  if (avatarPrev && fileInput) {
+    avatarPrev.style.cursor = 'pointer';
+    avatarPrev.title = 'Click to change avatar';
+    avatarPrev.onclick = () => fileInput.click();
+  }
+  // Live preview when typing URL or emoji
+  const urlInput = document.getElementById('settingsAvatarUrl');
+  if (urlInput && avatarPrev) {
+    urlInput.addEventListener('input', () => {
+      const val = (urlInput.value || '').trim();
+      if (!val) { avatarPrev.innerHTML = `${renderAvatar('👤').replaceAll('24px','96px')}`; delete avatarPrev.dataset.src; return; }
+      const isImg = /\.(svg|png|jpg|jpeg|gif|webp)$/i.test(val) || val.startsWith('http') || val.startsWith('data:') || val.startsWith('svg/');
+      if (isImg) {
+        const safe = val.replace(/"/g,'&quot;');
+        avatarPrev.innerHTML = `<img src="${safe}" style="width:96px;height:96px;border-radius:16px;object-fit:cover;">`;
+        avatarPrev.dataset.src = val;
+      } else {
+        avatarPrev.innerHTML = renderAvatar(val).replaceAll('24px','96px');
+        delete avatarPrev.dataset.src;
+      }
+    });
+  }
+  const saveAvBtn = document.getElementById('settingsSaveAvatarBtn');
+  if (saveAvBtn) saveAvBtn.onclick = saveSettingsAvatar;
+
+  const logoutBtn = document.getElementById('settingsLogoutBtn');
+  if (logoutBtn) logoutBtn.onclick = logoutToSignup;
 }
 
-function editProfile() {
-  alert('Profile editing will be implemented!');
+function startEditSettingsUsername() {
+  const editRow = document.getElementById('settingsUsernameEdit');
+  const disp = document.getElementById('settingsUsernameDisplay');
+  if (editRow && disp) {
+    editRow.style.display = 'flex';
+    disp.style.opacity = '0.5';
+  }
 }
 
-function changeTheme(theme) {
-  alert(`Theme changed to ${theme}!`);
+async function checkUsernameAvailability() {
+  const el = document.getElementById('settingsUsernameAvail');
+  const input = document.getElementById('settingsUsernameInput');
+  if (!el || !input) return;
+  const name = (input.value || '').trim().toLowerCase();
+  if (!name) { el.textContent = ''; return; }
+  try {
+    const token = await getAuthToken();
+    const resp = await fetch(`${BACKEND_URL}/api/user-data/username-available/${encodeURIComponent(name)}`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await resp.json();
+    if (data && data.available) { el.textContent = 'Available'; el.style.color = '#16a34a'; } else { el.textContent = 'Taken'; el.style.color = '#dc2626'; }
+  } catch {
+    el.textContent = '';
+  }
+}
+
+async function saveSettingsUsername() {
+  const input = document.getElementById('settingsUsernameInput');
+  if (!input) return;
+  const newUsername = (input.value || '').trim().toLowerCase();
+  if (!/^[a-z0-9]+$/.test(newUsername)) {
+    const el = document.getElementById('settingsUsernameAvail');
+    if (el) { el.textContent = 'Username must be lowercase letters and numbers only'; el.style.color = '#dc2626'; }
+    return;
+  }
+  if (!newUsername) return;
+  const current = getStoredProfile() || {};
+  try {
+    const token = await getAuthToken();
+    const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: newUsername, avatar: current.avatar || '', level: getStoredLevel() || 1, xp: getStoredXP() || 0 })
+    });
+    const data = await resp.json().catch(()=>({}));
+    if (!resp.ok) {
+      // Show inline error
+      const el = document.getElementById('settingsUsernameAvail');
+      if (el) { el.textContent = data.error || 'Failed to save'; el.style.color = '#dc2626'; }
+      return;
+    }
+    const updated = { ...current, username: newUsername };
+    setStoredProfile(updated);
+    renderProfileHeader(updated);
+    // Reflect UI now
+    const disp = document.getElementById('settingsUsernameDisplay');
+    if (disp) disp.textContent = newUsername;
+    const editRow = document.getElementById('settingsUsernameEdit');
+    if (editRow) editRow.style.display = 'none';
+    if (disp) disp.style.opacity = '1';
+  } catch (e) {
+    const el = document.getElementById('settingsUsernameAvail');
+    if (el) { el.textContent = e.message; el.style.color = '#dc2626'; }
+  }
+}
+
+function onSettingsAvatarFileSelected(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const url = reader.result;
+    const prev = document.getElementById('settingsAvatarPreview');
+    if (prev) {
+      prev.innerHTML = `<img src="${url.replace(/"/g,'&quot;')}" style="width:96px;height:96px;border-radius:16px;object-fit:cover;">`;
+      prev.dataset.src = url;
+    }
+    const urlInput = document.getElementById('settingsAvatarUrl');
+    if (urlInput) urlInput.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveSettingsAvatar() {
+  const prev = document.getElementById('settingsAvatarPreview');
+  const urlInput = document.getElementById('settingsAvatarUrl');
+  const current = getStoredProfile() || {};
+  let newAvatar = (urlInput && urlInput.value.trim()) || '';
+  if (!newAvatar && prev && prev.dataset && prev.dataset.src) newAvatar = prev.dataset.src;
+  if (!newAvatar) return;
+  try {
+    const token = await getAuthToken();
+    const resp = await fetch(`${BACKEND_URL}/api/user-data/profile`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: current.username, avatar: newAvatar, level: getStoredLevel() || 1, xp: getStoredXP() || 0 })
+    });
+    if (!resp.ok) return;
+    const updated = { ...current, avatar: newAvatar };
+    setStoredProfile(updated);
+    renderProfileHeader(updated);
+  } catch {}
+}
+
+async function logoutToSignup() {
+  try { await auth.signOut(); } catch {}
+  closeModal('settingsModal');
+  goToScreen('signupScreen');
+}
+
+// Utility: simple debounce
+function debounce(fn, wait) {
+  let t;
+  return function(...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), wait);
+  };
 }
 
 // ===== HELP SYSTEM =====
