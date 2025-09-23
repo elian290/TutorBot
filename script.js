@@ -3394,6 +3394,16 @@ async function renderInbox(container) {
       container.innerHTML = '<p>No friend requests.</p>';
       return;
     }
+
+// Expose key functions globally in case of module scoping differences
+try {
+  window.openSettings = openSettings;
+  window.renderSettingsProfile = renderSettingsProfile;
+  window.openAvatarPalette = openAvatarPalette;
+  window.onSettingsAvatarFileSelected = onSettingsAvatarFileSelected;
+  window.openAvatarCameraDialog = openAvatarCameraDialog;
+  window.saveSettingsAvatar = saveSettingsAvatar;
+} catch {}
     container.innerHTML = `
       <div class="requests-list">
         ${requests.map(r => `
@@ -3578,11 +3588,17 @@ async function openChallenge(toUserId, username) {
 
 // ===== SETTINGS SYSTEM =====
 function openSettings() {
-  openModal('settingsModal');
-  renderSettingsProfile();
+  try {
+    console.log('[Settings] openSettings called');
+    openModal('settingsModal');
+    renderSettingsProfile();
+  } catch (e) {
+    console.error('[Settings] Failed to open settings:', e);
+  }
 }
 
 function renderSettingsProfile() {
+  console.log('[Settings] renderSettingsProfile');
   const container = document.getElementById('settingsContent');
   if (!container) return;
   const p = getStoredProfile() || {};
