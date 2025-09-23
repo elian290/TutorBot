@@ -3023,13 +3023,17 @@ function openAchievements() {
 
 function loadAchievementsContent() {
   const content = document.getElementById('achievementsContent');
-  // Count unlocked using values to be robust against unexpected shapes
+  // Count unlocked by treating either an unlocked doc OR progress >= 1 as unlocked for display
   let unlockedCount = 0;
   try {
-    const values = Object.values(userAchievements || {});
-    unlockedCount = values.filter(v => v && (v.unlockedAt || Object.keys(v).length > 0)).length;
+    Object.keys(ACHIEVEMENTS).forEach((id) => {
+      const progress = getAchievementProgress(id);
+      const hasUnlockedDoc = !!(userAchievements && userAchievements[id] && (userAchievements[id].unlockedAt || Object.keys(userAchievements[id]).length > 0));
+      if (hasUnlockedDoc || progress >= 1) unlockedCount++;
+    });
   } catch { unlockedCount = 0; }
   const totalCount = Object.keys(ACHIEVEMENTS).length;
+
   
   let html = `
     <div class="achievements-header">
@@ -3045,13 +3049,16 @@ function loadAchievementsContent() {
   `;
   
   Object.entries(ACHIEVEMENTS).forEach(([id, achievement]) => {
-    const isUnlocked = userAchievements[id];
     const progress = getAchievementProgress(id);
+    const hasUnlockedDoc = !!userAchievements[id];
+    // Treat as unlocked for UI if either we have the doc or progress has reached target
+    const isUnlocked = hasUnlockedDoc || progress >= 1;
     const currentValueRaw = achievementStats[achievement.type] || 0;
     const currentValue = Math.min(currentValueRaw, achievement.target); // clamp display to target
     const isInProgress = progress > 0 && progress < 1;
     
     let statusClass = 'locked';
+
     if (isUnlocked) statusClass = 'unlocked';
     else if (isInProgress) statusClass = 'in-progress';
     
