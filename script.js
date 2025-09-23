@@ -3383,6 +3383,169 @@ function renderAddFriends(container) {
   `;
 }
 
+// ===== Avatar Palette (SVG grid) =====
+const SETTINGS_SVG_ICONS = [
+  'svg/activity-svgrepo-com.svg',
+  'svg/alarm-plus-svgrepo-com.svg',
+  'svg/alien-svgrepo-com.svg',
+  'svg/bell-svgrepo-com.svg',
+  'svg/chef-man-cap-svgrepo-com.svg',
+  'svg/cloud-bolt-svgrepo-com.svg',
+  'svg/cloud-sun-alt-svgrepo-com.svg',
+  'svg/cloud-up-arrow-svgrepo-com.svg',
+  'svg/hourglass-half-svgrepo-com.svg',
+  'svg/icicles-svgrepo-com.svg',
+  'svg/snow-alt-svgrepo-com.svg',
+  'svg/turn-off-svgrepo-com.svg',
+  'svg/umbrella-svgrepo-com.svg'
+];
+
+function openAvatarPalette() {
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'avatarPaletteOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:1000;';
+  const panel = document.createElement('div');
+  panel.style.cssText = 'background:#fff;border-radius:12px;max-width:720px;width:90%;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,0.2);';
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+      <div style="font-weight:600;font-size:16px;">Choose an Avatar</div>
+      <button id="avatarPaletteClose" style="border:none;background:#f3f4f6;padding:6px 10px;border-radius:8px;cursor:pointer;">✖</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:12px;max-height:360px;overflow:auto;">
+      ${SETTINGS_SVG_ICONS.map(src => `
+        <div class="avatar-pick" data-src="${src}" style="border:1px solid rgba(0,0,0,0.1);border-radius:10px;padding:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fafafa;">
+          <img src="${src}" alt="icon" style="width:64px;height:64px;object-fit:contain;">
+        </div>
+      `).join('')}
+    </div>
+  `;
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+
+  panel.querySelectorAll('.avatar-pick').forEach(div => {
+    div.addEventListener('click', () => {
+      const src = div.getAttribute('data-src');
+      const prev = document.getElementById('settingsAvatarPreview');
+      if (prev) {
+        const safe = src.replace(/"/g,'&quot;');
+        prev.innerHTML = `<img src="${safe}" style="width:96px;height:96px;border-radius:16px;object-fit:cover;background:#fff;">`;
+        prev.dataset.src = src;
+      }
+      closeAvatarPalette();
+    });
+  });
+
+  const closeBtn = document.getElementById('avatarPaletteClose');
+  if (closeBtn) closeBtn.onclick = closeAvatarPalette;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeAvatarPalette(); });
+}
+
+function closeAvatarPalette() {
+  const overlay = document.getElementById('avatarPaletteOverlay');
+  if (overlay) overlay.remove();
+}
+
+// ===== Camera capture for avatar =====
+function addSettingsCameraButton() {
+  // Insert button next to Upload
+  const uploadBtn = document.getElementById('settingsUploadAvatarBtn');
+  if (!uploadBtn) return;
+  let cam = document.getElementById('settingsCameraBtn');
+  if (!cam) {
+    cam = document.createElement('button');
+    cam.id = 'settingsCameraBtn';
+    cam.textContent = 'Camera';
+    cam.style.marginLeft = '6px';
+    uploadBtn.insertAdjacentElement('afterend', cam);
+  }
+  cam.onclick = openAvatarCameraDialog;
+}
+
+function openAvatarCameraDialog() {
+  const overlay = document.createElement('div');
+  overlay.id = 'avatarCameraOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
+  const panel = document.createElement('div');
+  panel.style.cssText = 'background:#fff;border-radius:12px;width:96%;max-width:520px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,0.25);';
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-weight:600">Take a photo</div>
+      <button id="avatarCamClose" style="border:none;background:#f3f4f6;padding:6px 10px;border-radius:8px;cursor:pointer;">✖</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
+      <video id="avatarCamVideo" autoplay playsinline style="width:100%;max-height:300px;background:#000;border-radius:10px;"></video>
+      <canvas id="avatarCamCanvas" width="256" height="256" style="display:none;"></canvas>
+      <div style="display:flex;gap:8px;">
+        <button id="avatarCamStart">Start</button>
+        <button id="avatarCamSnap">Snap</button>
+        <button id="avatarCamUse" style="background:#2563eb;color:#fff;">Use Photo</button>
+      </div>
+    </div>
+  `;
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+
+  const video = panel.querySelector('#avatarCamVideo');
+  const canvas = panel.querySelector('#avatarCamCanvas');
+  const startBtn = panel.querySelector('#avatarCamStart');
+  const snapBtn = panel.querySelector('#avatarCamSnap');
+  const useBtn = panel.querySelector('#avatarCamUse');
+  const closeBtn = panel.querySelector('#avatarCamClose');
+
+  let stream;
+
+  async function start() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      video.srcObject = stream;
+    } catch (e) {
+      alert('Could not access camera: ' + e.message);
+    }
+  }
+  function stop() {
+    try { if (stream) stream.getTracks().forEach(t => t.stop()); } catch {}
+    video.srcObject = null;
+  }
+  function snap() {
+    const ctx = canvas.getContext('2d');
+    const w = 256, h = 256;
+    canvas.width = w; canvas.height = h;
+    // Draw video frame centered crop (square)
+    const vw = video.videoWidth || 640;
+    const vh = video.videoHeight || 480;
+    const size = Math.min(vw, vh);
+    const sx = Math.floor((vw - size) / 2);
+    const sy = Math.floor((vh - size) / 2);
+    try { ctx.drawImage(video, sx, sy, size, size, 0, 0, w, h); } catch {}
+    canvas.style.display = 'block';
+  }
+  function usePhoto() {
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      const prev = document.getElementById('settingsAvatarPreview');
+      if (prev) {
+        prev.innerHTML = `<img src="${dataUrl}" style="width:96px;height:96px;border-radius:16px;object-fit:cover;">`;
+        prev.dataset.src = dataUrl;
+      }
+      close();
+    } catch (e) {
+      alert('Failed to capture: ' + e.message);
+    }
+  }
+  function close() {
+    stop();
+    const ov = document.getElementById('avatarCameraOverlay');
+    if (ov) ov.remove();
+  }
+
+  startBtn.onclick = start;
+  snapBtn.onclick = snap;
+  useBtn.onclick = usePhoto;
+  closeBtn.onclick = close;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+}
+
 async function renderInbox(container) {
   container.innerHTML = '<p>Loading requests...</p>';
   try {
@@ -3629,16 +3792,15 @@ function renderSettingsProfile() {
   if (nameInput) nameInput.oninput = debounce(checkUsernameAvailability, 300);
 
   const changeAv = document.getElementById('settingsChangeAvatarBtn');
-  if (changeAv) changeAv.onclick = () => {
-    const urlInput = document.getElementById('settingsAvatarUrl');
-    if (urlInput) urlInput.focus();
-  };
+  if (changeAv) changeAv.onclick = openAvatarPalette;
   const uploadBtn = document.getElementById('settingsUploadAvatarBtn');
   const fileInput = document.getElementById('settingsAvatarFile');
   if (uploadBtn && fileInput) {
     uploadBtn.onclick = () => fileInput.click();
     fileInput.onchange = onSettingsAvatarFileSelected;
   }
+  // Camera button beside Upload
+  addSettingsCameraButton();
   // Clicking the avatar also opens file chooser
   const avatarPrev = document.getElementById('settingsAvatarPreview');
   if (avatarPrev && fileInput) {
