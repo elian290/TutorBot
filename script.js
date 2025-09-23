@@ -563,13 +563,13 @@ async function validateAndSaveUsername(username, avatar, course) {
     const subjectSelect = document.getElementById('subject');
     let subjects = [];
     if (course === 'science') {
-      subjects = ['Core Maths', 'Physics', 'Chemistry', 'Biology', 'Elective Maths', 'Social Studies', 'Integrated Science', 'English Language'];
+      subjects = ['Core Maths', 'Physics', 'Chemistry', 'Biology', 'Elective Maths', 'Social Studies', 'Integrated Science', 'English Language','Elective ICT'];
     } else if (course === 'business') {
       subjects = ['Economics', 'Financial Accounting','Business Management', 'Elective Maths', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
     } else if (course === 'visualArts') {
       subjects = ['Visual Arts', 'Graphic Design', 'General Knowledge in Art', 'Elective Maths', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
     } else if (course === 'generalArts') {
-      subjects = ['Literature', 'History', 'Geography', 'Government', 'Economics', 'Christian Religious Studies', 'Islamic Studies', 'French', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
+      subjects = ['Literature', 'History', 'Geography', 'Government', 'Economics', 'Christian Religious Studies', 'Islamic Studies', 'French', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies','Elective ICT'];
     }
     if (subjectSelect) {
       subjectSelect.innerHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
@@ -3159,32 +3159,288 @@ function openGames() {
 }
 
 function playGame(gameId) {
-  alert(`Starting ${gameId}! This will be implemented with full game mechanics.`);
-  awardXP(50);
-  updateAchievementStat('gamesPlayed');
+  alert(`Launching ${gameId}...`);
 }
 
 // ===== FRIENDS SYSTEM =====
 function openFriends() {
   openModal('friendsModal');
-  document.getElementById('friendsContent').innerHTML = `
-    <div class="friends-header">
-      <h3>👥 Friends</h3>
-      <div class="friend-search">
-        <input type="text" id="friendSearch" placeholder="Search username...">
-        <button onclick="searchFriend()">Add Friend</button>
-      </div>
+  const content = document.getElementById('friendsContent');
+  content.innerHTML = `
+    <div class="friends-tabs">
+      <button id="friendsTabMy" class="tab-btn active" onclick="switchFriendsTab('my')">My Friends</button>
+      <button id="friendsTabAdd" class="tab-btn" onclick="switchFriendsTab('add')">Add Friends</button>
+      <button id="friendsTabInbox" class="tab-btn" onclick="switchFriendsTab('inbox')">Inbox</button>
     </div>
-    <div class="friends-list">
-      <p>No friends yet. Search and add friends to compete!</p>
+    <div id="friendsTabContent" class="friends-tab-content"></div>
+  `;
+  switchFriendsTab('my');
+}
+
+async function switchFriendsTab(tab) {
+  try {
+    document.getElementById('friendsTabMy').classList.toggle('active', tab === 'my');
+    document.getElementById('friendsTabAdd').classList.toggle('active', tab === 'add');
+    document.getElementById('friendsTabInbox').classList.toggle('active', tab === 'inbox');
+  } catch {}
+  const container = document.getElementById('friendsTabContent');
+  if (!container) return;
+  if (tab === 'my') {
+    await renderMyFriends(container);
+  } else if (tab === 'add') {
+    renderAddFriends(container);
+  } else if (tab === 'inbox') {
+    await renderInbox(container);
+  }
+}
+
+async function friendsApi(path, options = {}) {
+  const token = await getAuthToken();
+  const headers = Object.assign({ 'Authorization': `Bearer ${token}` }, options.headers || {});
+  const resp = await fetch(`${BACKEND_URL}/api/friends${path}`, { ...options, headers });
+  return resp;
+}
+
+async function renderMyFriends(container) {
+  container.innerHTML = '<p>Loading friends...</p>';
+  try {
+    const resp = await friendsApi('/list');
+    if (!resp.ok) throw new Error('Failed to load friends');
+    const data = await resp.json();
+    const friends = data.friends || [];
+    if (friends.length === 0) {
+      container.innerHTML = '<p>No friends yet. Go to Add Friends to connect!</p>';
+      return;
+    }
+    container.innerHTML = `
+      <div class="friends-list">
+        ${friends.map(f => friendListItemHtml(f)).join('')}
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<p style="color:#ef4444;">${e.message}</p>`;
+  }
+}
+
+function friendListItemHtml(f) {
+  const username = f.profile?.username || '(unknown)';
+  const avatar = f.profile?.avatar || '👤';
+  const userId = f.userId;
+  return `
+    <div class="friend-item" data-uid="${userId}" style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:10px;margin:6px 0;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="avatar">${avatar}</div>
+        <div class="name">${username}</div>
+        <button class="info-btn" title="View profile" onclick="viewFriendProfile('${userId}')">ℹ️</button>
+      </div>
+      <div class="actions" style="display:flex;gap:8px;">
+        <button title="Message" onclick="openMessageThread('${userId}', '${username}')">💬</button>
+        <button title="Remove" onclick="removeFriend('${userId}')">🗑️</button>
+        <button title="Challenge" onclick="openChallenge('${userId}', '${username}')">⚔️</button>
+      </div>
     </div>
   `;
 }
 
-function searchFriend() {
-  const username = document.getElementById('friendSearch').value.trim();
-  if (username) {
-    alert(`Friend request sent to ${username}!`);
+function renderAddFriends(container) {
+  container.innerHTML = `
+    <div class="friend-search" style="display:flex;gap:8px;">
+      <input type="text" id="friendSearch" placeholder="Enter username (lowercase, numbers)">
+      <button onclick="searchFriend()">Search</button>
+    </div>
+    <div id="friendSearchResult" style="margin-top:10px;"></div>
+  `;
+}
+
+async function renderInbox(container) {
+  container.innerHTML = '<p>Loading requests...</p>';
+  try {
+    const resp = await friendsApi('/requests');
+    if (!resp.ok) throw new Error('Failed to load requests');
+    const data = await resp.json();
+    const requests = data.requests || [];
+    if (requests.length === 0) {
+      container.innerHTML = '<p>No friend requests.</p>';
+      return;
+    }
+    container.innerHTML = `
+      <div class="requests-list">
+        ${requests.map(r => `
+          <div class="request-item" style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:10px;margin:6px 0;">
+            <div>Request from <strong>${r.fromUsername || r.fromUid}</strong></div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="acceptFriend('${r.id}')">Accept</button>
+              <button onclick="rejectFriend('${r.id}')">Reject</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<p style="color:#ef4444;">${e.message}</p>`;
+  }
+
+async function searchFriend() {
+  const input = document.getElementById('friendSearch');
+  const resultBox = document.getElementById('friendSearchResult');
+  const username = (input?.value || '').trim().toLowerCase();
+  if (!username) { if (resultBox) resultBox.innerHTML = '<p>Please enter a username.</p>'; return; }
+  if (resultBox) resultBox.innerHTML = '<p>Searching...</p>';
+  try {
+    const resp = await friendsApi(`/search?username=${encodeURIComponent(username)}`);
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({ error: 'User not found' }));
+      if (resultBox) resultBox.innerHTML = `<p style="color:#ef4444;">${err.error || 'Search failed'}</p>`;
+      return;
+    }
+    const data = await resp.json();
+    const p = data.profile || {};
+    if (data.isSelf) { if (resultBox) resultBox.innerHTML = '<p>You cannot add yourself.</p>'; return; }
+    const already = !!data.alreadyFriend;
+    if (resultBox) resultBox.innerHTML = `
+      <div class="search-item" style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="avatar">${p.avatar || '👤'}</div>
+          <div class="name">${p.username || username}</div>
+        </div>
+        <div>
+          ${already ? '<span>Already friends ✓</span>' : `<button onclick="sendFriendRequest('${p.username || username}')">Add Friend</button>`}
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    if (resultBox) resultBox.innerHTML = `<p style=\"color:#ef4444;\">${e.message}</p>`;
+  }
+}
+
+async function sendFriendRequest(username) {
+  try {
+    const resp = await friendsApi('/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({ error: 'Failed to send request' }));
+      alert(err.error || 'Failed to send request');
+      return;
+    }
+    alert('Friend request sent!');
+  } catch (e) {
+    alert('Failed: ' + e.message);
+  }
+}
+
+async function acceptFriend(fromUserId) {
+  try {
+    const resp = await friendsApi('/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromUserId })
+    });
+    if (!resp.ok) throw new Error('Failed to accept');
+    await switchFriendsTab('inbox');
+    await switchFriendsTab('my');
+  } catch (e) {
+    alert('Failed: ' + e.message);
+  }
+}
+
+async function rejectFriend(fromUserId) {
+  try {
+    const resp = await friendsApi('/reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromUserId })
+    });
+    if (!resp.ok) throw new Error('Failed to reject');
+    await switchFriendsTab('inbox');
+  } catch (e) {
+    alert('Failed: ' + e.message);
+  }
+}
+
+async function removeFriend(friendUserId) {
+  if (!confirm('Remove this friend?')) return;
+  try {
+    const resp = await friendsApi(`/remove/${friendUserId}`, { method: 'DELETE' });
+    if (!resp.ok) throw new Error('Failed to remove');
+    await switchFriendsTab('my');
+  } catch (e) {
+    alert('Failed: ' + e.message);
+  }
+}
+
+async function viewFriendProfile(userId) {
+  try {
+    const resp = await friendsApi(`/profile/${userId}`);
+    if (!resp.ok) throw new Error('Failed to load profile');
+    const data = await resp.json();
+    const p = data.profile || {};
+    const level = p.level || 1;
+    const xp = p.xp || 0;
+    alert(`Friend Profile\nUsername: ${p.username || ''}\nLevel: ${level}\nXP: ${xp}`);
+  } catch (e) {
+    alert('Failed to load profile: ' + e.message);
+  }
+}
+
+async function openMessageThread(withUserId, username) {
+  const container = document.getElementById('friendsTabContent');
+  if (!container) return;
+  container.innerHTML = `<div><button onclick="switchFriendsTab('my')">← Back</button><h3>Chat with ${username}</h3><div id=\"messagesBox\" style=\"height:250px;overflow:auto;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:8px;margin:8px 0;\">Loading...</div><div style=\"display:flex;gap:8px;\"><input type=\"text\" id=\"messageInput\" placeholder=\"Type a message...\" style=\"flex:1;\"><button id=\"sendMsgBtn\">Send</button></div></div>`;
+  await loadMessages(withUserId);
+  const sendBtn = document.getElementById('sendMsgBtn');
+  if (sendBtn) sendBtn.onclick = async () => {
+    const text = document.getElementById('messageInput').value.trim();
+    if (!text) return;
+    try {
+      const resp = await friendsApi(`/messages/${withUserId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if (resp.ok) {
+        document.getElementById('messageInput').value = '';
+        await loadMessages(withUserId);
+      } else {
+        alert('Failed to send message');
+      }
+    } catch (e) {
+      alert('Failed to send message: ' + e.message);
+    }
+  };
+}
+
+async function loadMessages(withUserId) {
+  try {
+    const box = document.getElementById('messagesBox');
+    const resp = await friendsApi(`/messages/${withUserId}?limit=100`);
+    if (!resp.ok) throw new Error('Failed to load messages');
+    const data = await resp.json();
+    const msgs = data.messages || [];
+    const myId = auth.currentUser?.uid;
+    if (box) box.innerHTML = msgs.map(m => `<div style=\"margin:4px 0;${m.from===myId?'text-align:right;':''}\"><span style=\"display:inline-block;background:${m.from===myId?'#e0ffe8':'#f1f5f9'};padding:6px 8px;border-radius:8px;\">${(m.text||'').replace(/</g,'&lt;')}</span></div>`).join('');
+    if (box) box.scrollTop = box.scrollHeight;
+  } catch (e) {
+    const box = document.getElementById('messagesBox');
+    if (box) box.innerHTML = `<p style=\"color:#ef4444;\">${e.message}</p>`;
+  }
+}
+
+async function openChallenge(toUserId, username) {
+  const subject = prompt(`Challenge ${username} on which subject?`);
+  if (!subject) return;
+  try {
+    const resp = await friendsApi('/challenge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: toUserId, subject })
+    });
+    if (!resp.ok) throw new Error('Failed to send challenge');
+    alert('Challenge sent! If accepted, you will be redirected to the challenge screen.');
+  } catch (e) {
+    alert('Failed: ' + e.message);
   }
 }
 
