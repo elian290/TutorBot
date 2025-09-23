@@ -2755,6 +2755,11 @@ async function loadAchievementsFromBackend() {
         achievementStats = data.stats;
         localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
       }
+
+      // Apply backend XP to local level/xp if provided
+      if (typeof data.totalXP === 'number') {
+        applyBackendXPToProfile(data.totalXP);
+      }
       
       console.log('Achievements loaded from backend');
       
@@ -2766,6 +2771,27 @@ async function loadAchievementsFromBackend() {
   } catch (error) {
     console.log('Failed to load achievements from backend:', error);
   }
+}
+
+// Convert backend total XP into local level + in-level XP and update UI/storage
+function applyBackendXPToProfile(totalXP) {
+  let remaining = Math.max(0, Math.floor(totalXP));
+  let level = 1;
+  while (true) {
+    const needed = xpNeededForLevel(level);
+    if (remaining < needed) break;
+    remaining -= needed;
+    level += 1;
+    // Safety cap to avoid infinite loops
+    if (level > 1000) break;
+  }
+  setStoredLevel(level);
+  setStoredXP(remaining);
+  const profile = getStoredProfile() || {};
+  profile.level = level;
+  profile.xp = remaining;
+  setStoredProfile(profile);
+  renderProfileHeader(profile);
 }
 
 function openAchievements() {
@@ -2791,7 +2817,12 @@ async function refreshAchievements() {
 
 function loadAchievementsContent() {
   const content = document.getElementById('achievementsContent');
-  const unlockedCount = Object.keys(userAchievements).length;
+  // Count unlocked using values to be robust against unexpected shapes
+  let unlockedCount = 0;
+  try {
+    const values = Object.values(userAchievements || {});
+    unlockedCount = values.filter(v => v && (v.unlockedAt || Object.keys(v).length > 0)).length;
+  } catch { unlockedCount = 0; }
   const totalCount = Object.keys(ACHIEVEMENTS).length;
   
   let html = `
