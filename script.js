@@ -2379,6 +2379,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load achievements from backend
   loadAchievementsFromBackend();
   
+  // Set up Firebase listeners for real-time sync
+  if (window.auth) {
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        setupAchievementListeners();
+      }
+    });
+  }
+  
   // Add keyboard navigation for pricing cards
   addPricingCardKeyboardSupport();
   
@@ -2747,7 +2756,12 @@ async function loadAchievementsFromBackend() {
         localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
       }
       
-      console.log('✅ Achievements loaded from backend');
+      console.log('Achievements loaded from backend');
+      
+      // Refresh achievements modal if it's open
+      if (document.getElementById('achievementsModal').style.display === 'flex') {
+        loadAchievementsContent();
+      }
     }
   } catch (error) {
     console.log('Failed to load achievements from backend:', error);
@@ -2759,6 +2773,22 @@ function openAchievements() {
   loadAchievementsContent();
 }
 
+// Manual refresh achievements from backend
+async function refreshAchievements() {
+  console.log('🔄 Manually refreshing achievements...');
+  await loadAchievementsFromBackend();
+  
+  // Show brief feedback
+  const refreshBtn = document.querySelector('.refresh-achievements-btn');
+  if (refreshBtn) {
+    const originalText = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '✅ Refreshed!';
+    setTimeout(() => {
+      refreshBtn.innerHTML = originalText;
+    }, 1500);
+  }
+}
+
 function loadAchievementsContent() {
   const content = document.getElementById('achievementsContent');
   const unlockedCount = Object.keys(userAchievements).length;
@@ -2767,7 +2797,10 @@ function loadAchievementsContent() {
   let html = `
     <div class="achievements-header">
       <div class="progress-summary">
-        <h3>Progress: ${unlockedCount}/${totalCount} Achievements</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3>Progress: ${unlockedCount}/${totalCount} Achievements</h3>
+          <button class="refresh-achievements-btn" onclick="refreshAchievements()" style="background: #38bdf8; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">🔄 Refresh</button>
+        </div>
         <div class="progress-bar">
           <div class="progress-fill" style="width: ${(unlockedCount/totalCount)*100}%"></div>
         </div>
