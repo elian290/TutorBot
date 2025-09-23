@@ -2189,6 +2189,9 @@ function getUserPlan() {
         localStorage.removeItem('tutorbotPaidDate');
         return 'free';
     }
+    
+    return plan;
+}
 
 // Listen to Firestore in real-time for cross-device achievement/XP sync
 function setupAchievementListeners() {
@@ -2328,8 +2331,6 @@ function computeTotalXPFromLocal() {
   }
   total += inLevelXP;
   return total;
-}
-    return plan;
 }
 
 // Helper: Checking if user is Plus (for backward compatibility)
@@ -2516,14 +2517,21 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeDailyUsage(); // Load daily usage immediately
   updateSpeechControlButtons();
   
-  // Load achievements from backend
-  loadAchievementsFromBackend();
-  
   // Set up Firebase listeners for real-time sync
   if (window.auth) {
     auth.onAuthStateChanged((user) => {
       if (user) {
+        console.log('🔐 User authenticated, loading achievements...');
+        // Load achievements from backend only after authentication
+        loadAchievementsFromBackend();
         setupAchievementListeners();
+      } else {
+        console.log('🚫 User not authenticated');
+        // Clear polling if user logs out
+        if (window.achievementPollInterval) {
+          clearInterval(window.achievementPollInterval);
+          window.achievementPollInterval = null;
+        }
       }
     });
   }
