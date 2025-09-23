@@ -2190,6 +2190,105 @@ function getUserPlan() {
         return 'free';
     }
 
+// Listen to Firestore in real-time for cross-device achievement/XP sync
+function setupAchievementListeners() {
+  try {
+    if (!window.auth || !auth.currentUser) {
+      console.log('setupAchievementListeners: no authenticated user');
+      return;
+    }
+    if (!window.db) {
+      console.log('setupAchievementListeners: Firestore not initialized');
+      return;
+    }
+    const userId = auth.currentUser.uid;
+
+    // Achievements collection listener: rebuild local cache on any change
+    const achievementsRef = db.collection('users').doc(userId).collection('achievements');
+    achievementsRef.onSnapshot((snapshot) => {
+      const next = {};
+      snapshot.forEach(doc => { next[doc.id] = doc.data(); });
+
+      const prevJson = JSON.stringify(userAchievements || {});
+      const nextJson = JSON.stringify(next || {});
+      if (prevJson !== nextJson) {
+        userAchievements = next;
+        localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
+
+        // If modal is open, re-render
+        const modal = document.getElementById('achievementsModal');
+        if (modal && modal.style.display === 'flex') {
+          loadAchievementsContent();
+        }
+
+        // Optional: show a subtle sync toast when something new appears
+        const unlockedIds = Object.keys(userAchievements || {});
+        if (unlockedIds.length > 0) {
+          const any = userAchievements[unlockedIds[unlockedIds.length - 1]];
+          if (any && any.name) {
+            showAchievementSyncNotification(any);
+          }
+        }
+      }
+    });
+
+    // User document listener: updates for stats and totalXP
+    const userRef = db.collection('users').doc(userId);
+    userRef.onSnapshot((doc) => {
+      if (!doc.exists) return;
+      const data = doc.data() || {};
+      if (data.achievementStats) {
+        const prevJson = JSON.stringify(achievementStats || {});
+        const nextJson = JSON.stringify(data.achievementStats || {});
+        if (prevJson !== nextJson) {
+          achievementStats = data.achievementStats;
+          localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
+          const modal = document.getElementById('achievementsModal');
+          if (modal && modal.style.display === 'flex') {
+            loadAchievementsContent();
+          }
+        }
+      }
+
+      if (typeof data.totalXP === 'number') {
+        const localTotal = computeTotalXPFromLocal();
+        if (data.totalXP >= localTotal) {
+          applyBackendXPToProfile(data.totalXP);
+        }
+        // Fallback: also pull latest achievements via backend in case
+        // Firestore rules block reading the achievements subcollection
+        // This keeps the achievements list in sync across devices
+        loadAchievementsFromBackend();
+      }
+    });
+
+    console.log('✅ Real-time achievement listeners active');
+  } catch (e) {
+    console.warn('setupAchievementListeners error:', e);
+  }
+}
+
+// Small toast to indicate a sync occurred
+function showAchievementSyncNotification(achievement) {
+  try {
+    const notification = document.createElement('div');
+    notification.className = 'achievement-notification';
+    notification.style.background = 'linear-gradient(135deg, #0ea5e9 0%, #22d3ee 100%)';
+    notification.innerHTML = `
+      <div class="achievement-content">
+        <div class="achievement-icon">${achievement.icon || '🎉'}</div>
+        <div class="achievement-text">
+          <div class="achievement-title">Synced from another device</div>
+          <div class="achievement-name">${achievement.name || ''}</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.classList.add('show'), 50);
+    setTimeout(() => { notification.classList.remove('show'); setTimeout(() => notification.remove(), 300); }, 2500);
+  } catch {}
+}
+
 // Compute total XP from local stored level and in-level XP
 function computeTotalXPFromLocal() {
   const level = getStoredLevel() || 1;
