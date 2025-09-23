@@ -2189,6 +2189,18 @@ function getUserPlan() {
         localStorage.removeItem('tutorbotPaidDate');
         return 'free';
     }
+
+// Compute total XP from local stored level and in-level XP
+function computeTotalXPFromLocal() {
+  const level = getStoredLevel() || 1;
+  const inLevelXP = getStoredXP() || 0;
+  let total = 0;
+  for (let l = 1; l < level; l++) {
+    total += xpNeededForLevel(l);
+  }
+  total += inLevelXP;
+  return total;
+}
     return plan;
 }
 
@@ -2627,25 +2639,47 @@ function getAchievementProgress(achievementId) {
   return Math.min(currentValue / achievement.target, 1);
 }
 
-function unlockAchievement(achievementId) {
+async function unlockAchievement(achievementId) {
   const achievement = ACHIEVEMENTS[achievementId];
-  userAchievements[achievementId] = {
-    unlockedAt: new Date().toISOString(),
-    ...achievement
-  };
-  
-  localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
-  
-  // Sync to backend
-  syncAchievementToBackend(achievementId, achievement);
-  
-  // Award XP
-  awardXP(achievement.xp);
-  
-  // Show achievement notification
-  showAchievementNotification(achievement);
-  
-  console.log(`🏆 Achievement Unlocked: ${achievement.name} (+${achievement.xp} XP)`);
+  if (!achievement) return;
+
+  // Optimistically mark as unlocked locally to prevent duplicate checks/notifications
+  if (!userAchievements[achievementId]) {
+    userAchievements[achievementId] = {
+      unlockedAt: new Date().toISOString(),
+      ...achievement
+    };
+    localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
+  }
+
+  // Sync to backend and use its response as the source of truth for XP application
+  try {
+    const res = await syncAchievementToBackend(achievementId, achievement);
+    if (res && res.success) {
+      // Only award/apply XP if this achievement was newly created server-side
+      if (res.created) {
+        // Apply authoritative totalXP from backend if provided; otherwise award locally
+        if (typeof res.totalXP === 'number') {
+          applyBackendXPToProfile(res.totalXP);
+        } else {
+          // Fallback: award locally
+          await awardXP(achievement.xp);
+        }
+        showAchievementNotification(achievement);
+        console.log(`🏆 Achievement Unlocked: ${achievement.name} (+${achievement.xp} XP)`);
+      } else {
+        // Already unlocked server-side; ensure we render with backend XP if available
+        if (typeof res.totalXP === 'number') {
+          const localTotal = computeTotalXPFromLocal();
+          if (res.totalXP >= localTotal) {
+            applyBackendXPToProfile(res.totalXP);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to sync unlock to backend:', e);
+  }
 }
 
 function showAchievementNotification(achievement) {
@@ -2708,13 +2742,13 @@ async function syncAchievementStatsToBackend(statType, value) {
   }
 }
 
-// Sync unlocked achievement to backend
+// Sync unlocked achievement to backend and return server response
 async function syncAchievementToBackend(achievementId, achievement) {
   try {
     const token = await getAuthToken();
     if (!token) return;
     
-    await fetch(`${BACKEND_URL}/api/achievements/unlock`, {
+    const resp = await fetch(`${BACKEND_URL}/api/achievements/unlock`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -2727,6 +2761,10 @@ async function syncAchievementToBackend(achievementId, achievement) {
         xpAwarded: achievement.xp
       })
     });
+    if (resp && resp.ok) {
+      return await resp.json();
+    }
+    return null;
   } catch (error) {
     console.log('Failed to sync achievement to backend:', error);
   }
@@ -2745,20 +2783,24 @@ async function loadAchievementsFromBackend() {
     if (response.ok) {
       const data = await response.json();
       
-      // Update local storage with backend data
-      if (data.achievements) {
+      // Update local storage with backend data (do not overwrite with empty objects)
+      if (data.achievements && Object.keys(data.achievements || {}).length > 0) {
         userAchievements = data.achievements;
         localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
       }
       
-      if (data.stats) {
+      if (data.stats && Object.keys(data.stats || {}).length > 0) {
         achievementStats = data.stats;
         localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
       }
 
       // Apply backend XP to local level/xp if provided
       if (typeof data.totalXP === 'number') {
-        applyBackendXPToProfile(data.totalXP);
+        // Only apply backend XP if it is authoritative (>= local computed)
+        const localTotal = computeTotalXPFromLocal();
+        if (data.totalXP >= localTotal) {
+          applyBackendXPToProfile(data.totalXP);
+        }
       }
       
       console.log('Achievements loaded from backend');
@@ -2799,22 +2841,6 @@ function openAchievements() {
   loadAchievementsContent();
 }
 
-// Manual refresh achievements from backend
-async function refreshAchievements() {
-  console.log('🔄 Manually refreshing achievements...');
-  await loadAchievementsFromBackend();
-  
-  // Show brief feedback
-  const refreshBtn = document.querySelector('.refresh-achievements-btn');
-  if (refreshBtn) {
-    const originalText = refreshBtn.innerHTML;
-    refreshBtn.innerHTML = '✅ Refreshed!';
-    setTimeout(() => {
-      refreshBtn.innerHTML = originalText;
-    }, 1500);
-  }
-}
-
 function loadAchievementsContent() {
   const content = document.getElementById('achievementsContent');
   // Count unlocked using values to be robust against unexpected shapes
@@ -2828,10 +2854,7 @@ function loadAchievementsContent() {
   let html = `
     <div class="achievements-header">
       <div class="progress-summary">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-          <h3>Progress: ${unlockedCount}/${totalCount} Achievements</h3>
-          <button class="refresh-achievements-btn" onclick="refreshAchievements()" style="background: #38bdf8; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em;">🔄 Refresh</button>
-        </div>
+        <h3>Progress: ${unlockedCount}/${totalCount} Achievements</h3>
         <div class="progress-bar">
           <div class="progress-fill" style="width: ${(unlockedCount/totalCount)*100}%"></div>
         </div>
@@ -2844,7 +2867,8 @@ function loadAchievementsContent() {
   Object.entries(ACHIEVEMENTS).forEach(([id, achievement]) => {
     const isUnlocked = userAchievements[id];
     const progress = getAchievementProgress(id);
-    const currentValue = achievementStats[achievement.type] || 0;
+    const currentValueRaw = achievementStats[achievement.type] || 0;
+    const currentValue = Math.min(currentValueRaw, achievement.target); // clamp display to target
     const isInProgress = progress > 0 && progress < 1;
     
     let statusClass = 'locked';
