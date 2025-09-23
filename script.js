@@ -2192,26 +2192,35 @@ function getUserPlan() {
 
 // Listen to Firestore in real-time for cross-device achievement/XP sync
 function setupAchievementListeners() {
+  console.log('🔧 Setting up achievement listeners...');
+  
+  // Always start polling as fallback
+  startAchievementPolling();
+  
   try {
     if (!window.auth || !auth.currentUser) {
-      console.log('setupAchievementListeners: no authenticated user');
+      console.log('⚠️ No authenticated user for Firestore listeners');
       return;
     }
     if (!window.db) {
-      console.log('setupAchievementListeners: Firestore not initialized');
+      console.log('⚠️ Firestore not initialized, relying on polling only');
       return;
     }
+    
     const userId = auth.currentUser.uid;
+    console.log('🔥 Setting up Firestore listeners for user:', userId);
 
     // Achievements collection listener: rebuild local cache on any change
     const achievementsRef = db.collection('users').doc(userId).collection('achievements');
     achievementsRef.onSnapshot((snapshot) => {
+      console.log('📊 Achievements snapshot received, docs:', snapshot.size);
       const next = {};
       snapshot.forEach(doc => { next[doc.id] = doc.data(); });
 
       const prevJson = JSON.stringify(userAchievements || {});
       const nextJson = JSON.stringify(next || {});
       if (prevJson !== nextJson) {
+        console.log('🔄 Achievements changed via Firestore');
         userAchievements = next;
         localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
 
@@ -2221,26 +2230,31 @@ function setupAchievementListeners() {
           loadAchievementsContent();
         }
 
-        // Optional: show a subtle sync toast when something new appears
+        // Show sync notification for new achievements
         const unlockedIds = Object.keys(userAchievements || {});
         if (unlockedIds.length > 0) {
-          const any = userAchievements[unlockedIds[unlockedIds.length - 1]];
-          if (any && any.name) {
-            showAchievementSyncNotification(any);
+          const latest = userAchievements[unlockedIds[unlockedIds.length - 1]];
+          if (latest && latest.name) {
+            showAchievementSyncNotification(latest);
           }
         }
       }
+    }, (error) => {
+      console.warn('❌ Achievements listener error:', error);
     });
 
     // User document listener: updates for stats and totalXP
     const userRef = db.collection('users').doc(userId);
     userRef.onSnapshot((doc) => {
+      console.log('👤 User doc snapshot received, exists:', doc.exists);
       if (!doc.exists) return;
       const data = doc.data() || {};
+      
       if (data.achievementStats) {
         const prevJson = JSON.stringify(achievementStats || {});
         const nextJson = JSON.stringify(data.achievementStats || {});
         if (prevJson !== nextJson) {
+          console.log('📈 Achievement stats changed via Firestore');
           achievementStats = data.achievementStats;
           localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
           const modal = document.getElementById('achievementsModal');
@@ -2251,21 +2265,36 @@ function setupAchievementListeners() {
       }
 
       if (typeof data.totalXP === 'number') {
+        console.log('💎 TotalXP from Firestore:', data.totalXP);
         const localTotal = computeTotalXPFromLocal();
         if (data.totalXP >= localTotal) {
           applyBackendXPToProfile(data.totalXP);
         }
-        // Fallback: also pull latest achievements via backend in case
-        // Firestore rules block reading the achievements subcollection
-        // This keeps the achievements list in sync across devices
+        // Force backend sync when XP changes
         loadAchievementsFromBackend();
       }
+    }, (error) => {
+      console.warn('❌ User doc listener error:', error);
     });
 
-    console.log('✅ Real-time achievement listeners active');
+    console.log('✅ Firestore achievement listeners active');
   } catch (e) {
-    console.warn('setupAchievementListeners error:', e);
+    console.warn('❌ setupAchievementListeners error:', e);
   }
+}
+
+// Polling fallback for cross-device sync
+function startAchievementPolling() {
+  // Prevent multiple intervals
+  if (window.achievementPollInterval) {
+    clearInterval(window.achievementPollInterval);
+  }
+  
+  console.log('🔄 Starting achievement polling every 8 seconds');
+  window.achievementPollInterval = setInterval(() => {
+    console.log('📡 Polling achievements from backend...');
+    loadAchievementsFromBackend();
+  }, 8000); // Poll every 8 seconds
 }
 
 // Small toast to indicate a sync occurred
