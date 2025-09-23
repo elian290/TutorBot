@@ -3279,6 +3279,7 @@ async function renderInbox(container) {
   } catch (e) {
     container.innerHTML = `<p style="color:#ef4444;">${e.message}</p>`;
   }
+}
 
 async function searchFriend() {
   const input = document.getElementById('friendSearch');
