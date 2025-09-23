@@ -8,3 +8,9 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 window.auth = firebase.auth();
+// Initialize Firestore for real-time achievements/XP sync
+try {
+  window.db = firebase.firestore();
+} catch (e) {
+  console.warn('Firestore initialization failed or unavailable:', e);
+}

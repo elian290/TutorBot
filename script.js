@@ -2769,8 +2769,8 @@ let achievementStats = {};
 const ACHIEVEMENTS_KEY = 'userAchievements';
 const ACHIEVEMENT_STATS_KEY = 'achievementStats';
 
-// Get a user-scoped key for localStorage using Firebase UID
-function getUserScopedKey(key) {
+// Get a user-scoped key for achievements localStorage using Firebase UID
+function getAchievementScopedKey(key) {
   const uid = (window.auth && auth.currentUser && auth.currentUser.uid) ? auth.currentUser.uid : null;
   if (!uid) return null;
   return `${uid}:${key}`;
@@ -2778,8 +2778,8 @@ function getUserScopedKey(key) {
 
 function loadAchievementsFromStorage() {
   try {
-    const aKey = getUserScopedKey(ACHIEVEMENTS_KEY);
-    const sKey = getUserScopedKey(ACHIEVEMENT_STATS_KEY);
+    const aKey = getAchievementScopedKey(ACHIEVEMENTS_KEY);
+    const sKey = getAchievementScopedKey(ACHIEVEMENT_STATS_KEY);
     if (aKey) userAchievements = JSON.parse(localStorage.getItem(aKey) || '{}'); else userAchievements = {};
     if (sKey) achievementStats = JSON.parse(localStorage.getItem(sKey) || '{}'); else achievementStats = {};
   } catch {
@@ -2788,12 +2788,12 @@ function loadAchievementsFromStorage() {
 }
 
 function saveAchievementsToStorage() {
-  const aKey = getUserScopedKey(ACHIEVEMENTS_KEY);
+  const aKey = getAchievementScopedKey(ACHIEVEMENTS_KEY);
   if (aKey) localStorage.setItem(aKey, JSON.stringify(userAchievements));
 }
 
 function saveStatsToStorage() {
-  const sKey = getUserScopedKey(ACHIEVEMENT_STATS_KEY);
+  const sKey = getAchievementScopedKey(ACHIEVEMENT_STATS_KEY);
   if (sKey) localStorage.setItem(sKey, JSON.stringify(achievementStats));
 }
 
