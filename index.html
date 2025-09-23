@@ -335,6 +335,51 @@
         margin-bottom: 8px;
       }
     }
+
+    /* Exam Shortcuts (below Saved Flashcards) */
+    .exam-shortcuts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .exam-tile {
+      position: relative;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 16px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #e5e7eb;
+      text-align: center;
+      user-select: none;
+      cursor: not-allowed;
+      transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+    .exam-tile:hover {
+      transform: translateY(-2px);
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.12);
+    }
+    .exam-icon {
+      font-size: 28px;
+      line-height: 1;
+    }
+    .exam-label {
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .exam-tile .lock {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      opacity: 0.7;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -585,6 +630,40 @@
       <button id="nextFlashcardBtn" onclick="navigateFlashcards(1)" disabled>Next &gt;</button>
     </div>
     <div class="flashcard-history-box" id="flashcard-history-box" style="display:none;"></div>
+    
+    <!-- Exam Shortcuts (Locked) -->
+    <div class="exam-shortcuts" id="examShortcuts">
+      <div class="exam-tile" onclick="alert('Coming soon!')" title="SAT (Coming soon)">
+        <div class="lock">🔒</div>
+        <div class="exam-icon">🧠</div>
+        <div class="exam-label">SAT</div>
+      </div>
+      <div class="exam-tile" onclick="alert('Coming soon!')" title="ACT (Coming soon)">
+        <div class="lock">🔒</div>
+        <div class="exam-icon">📘</div>
+        <div class="exam-label">ACT</div>
+      </div>
+      <div class="exam-tile" onclick="alert('Coming soon!')" title="GRE (Coming soon)">
+        <div class="lock">🔒</div>
+        <div class="exam-icon">📈</div>
+        <div class="exam-label">GRE</div>
+      </div>
+      <div class="exam-tile" onclick="alert('Coming soon!')" title="CAM (Coming soon)">
+        <div class="lock">🔒</div>
+        <div class="exam-icon">📷</div>
+        <div class="exam-label">CAM</div>
+      </div>
+      <div class="exam-tile" onclick="alert('Coming soon!')" title="NSMQ (Coming soon)">
+        <div class="lock">🔒</div>
+        <div class="exam-icon">🏆</div>
+        <div class="exam-label">NSMQ</div>
+      </div>
+      <div class="exam-tile" onclick="alert('Coming soon!')" title="SHARKS (Coming soon)">
+        <div class="lock">🔒</div>
+        <div class="exam-icon">🦈</div>
+        <div class="exam-label">SHARKS</div>
+      </div>
+    </div>
   </div>
       <div style="text-align:center; margin-top:32px; color:#94a3b8; font-size:0.95em;">
       &copy; 2025 THE AI DEV
