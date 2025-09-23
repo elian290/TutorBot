@@ -3394,16 +3394,6 @@ async function renderInbox(container) {
       container.innerHTML = '<p>No friend requests.</p>';
       return;
     }
-
-// Expose key functions globally in case of module scoping differences
-try {
-  window.openSettings = openSettings;
-  window.renderSettingsProfile = renderSettingsProfile;
-  window.openAvatarPalette = openAvatarPalette;
-  window.onSettingsAvatarFileSelected = onSettingsAvatarFileSelected;
-  window.openAvatarCameraDialog = openAvatarCameraDialog;
-  window.saveSettingsAvatar = saveSettingsAvatar;
-} catch {}
     container.innerHTML = `
       <div class="requests-list">
         ${requests.map(r => `
@@ -3607,7 +3597,7 @@ function renderSettingsProfile() {
   container.innerHTML = `
     <div class="settings-profile" style="display:flex;flex-direction:column;gap:16px;">
       <div style="display:flex;align-items:center;gap:16px;">
-        <div id="settingsAvatarPreview" style="width:96px;height:96px;border-radius:16px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+        <div id="settingsAvatarPreview" style="width:96px;height:96px;border-radius:16px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;overflow:hidden;" onclick="openAvatarPalette()" title="Change avatar">
           ${renderAvatar(avatar).replaceAll('24px','96px')}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;">
@@ -3620,53 +3610,52 @@ function renderSettingsProfile() {
             <button id="settingsSaveNameBtn">Save</button>
             <div id="settingsUsernameAvail" style="font-size:12px;color:#6b7280;"></div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <button id="settingsChangeAvatarBtn">Change Avatar</button>
-            <input id="settingsAvatarFile" type="file" accept="image/*" style="display:none;">
-            <button id="settingsUploadAvatarBtn">Upload</button>
-            <button id="settingsCameraBtn">Camera</button>
-            <button id="settingsSaveAvatarBtn" style="background:#2563eb;color:#fff;">Save Avatar</button>
+          <div class="settings-btn-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button id="settingsChangeAvatarBtn" onclick="console.log('[Settings] Change Avatar clicked'); openAvatarPalette()">Change Avatar</button>
+            <input id="settingsAvatarFile" type="file" accept="image/*" style="display:none;" onchange="console.log('[Settings] File selected'); onSettingsAvatarFileSelected(event)">
+            <button id="settingsUploadAvatarBtn" onclick="console.log('[Settings] Upload clicked'); document.getElementById('settingsAvatarFile').click()">Upload</button>
+            <button id="settingsCameraBtn" onclick="console.log('[Settings] Camera clicked'); openAvatarCameraDialog()">Camera</button>
+            <button id="settingsSaveAvatarBtn" onclick="console.log('[Settings] Save Avatar clicked'); saveSettingsAvatar()" style="background:#2563eb;color:#fff;">Save Avatar</button>
           </div>
         </div>
       </div>
 
       <div style="margin-top:4px;">
-        <button id="settingsLogoutBtn" style="background:#ef4444;color:#fff;padding:10px 14px;border:none;border-radius:8px;">Log out</button>
+        <button id="settingsLogoutBtn" onclick="logoutToSignup()" style="background:#ef4444;color:#fff;padding:10px 14px;border:none;border-radius:8px;">Log out</button>
       </div>
     </div>
   `;
 
-  // Wire events
-  const editBtn = document.getElementById('settingsEditNameBtn');
-  if (editBtn) editBtn.onclick = startEditSettingsUsername;
-  const saveNameBtn = document.getElementById('settingsSaveNameBtn');
-  if (saveNameBtn) saveNameBtn.onclick = saveSettingsUsername;
-  const nameInput = document.getElementById('settingsUsernameInput');
-  if (nameInput) nameInput.oninput = debounce(checkUsernameAvailability, 300);
+  // Wire events (guard missing helpers to avoid ReferenceError)
+  try {
+    const editBtn = document.getElementById('settingsEditNameBtn');
+    if (editBtn && typeof window.startEditSettingsUsername === 'function') {
+      editBtn.onclick = window.startEditSettingsUsername;
+    }
+    const saveNameBtn = document.getElementById('settingsSaveNameBtn');
+    if (saveNameBtn && typeof window.saveSettingsUsername === 'function') {
+      saveNameBtn.onclick = window.saveSettingsUsername;
+    }
+    const nameInput = document.getElementById('settingsUsernameInput');
+    if (nameInput && typeof window.checkUsernameAvailability === 'function') {
+      nameInput.oninput = (typeof debounce === 'function') ? debounce(window.checkUsernameAvailability, 300) : window.checkUsernameAvailability;
+    }
+  } catch (e) { console.warn('[Settings] Username handlers not attached:', e); }
 
-  const changeAv = document.getElementById('settingsChangeAvatarBtn');
-  if (changeAv) changeAv.onclick = openAvatarPalette;
-  const uploadBtn = document.getElementById('settingsUploadAvatarBtn');
-  const fileInput = document.getElementById('settingsAvatarFile');
-  if (uploadBtn && fileInput) {
-    uploadBtn.onclick = () => fileInput.click();
-    fileInput.onchange = onSettingsAvatarFileSelected;
-  }
-  const camBtn = document.getElementById('settingsCameraBtn');
-  if (camBtn) camBtn.onclick = openAvatarCameraDialog;
-  // Clicking the avatar also opens file chooser
-  const avatarPrev = document.getElementById('settingsAvatarPreview');
-  if (avatarPrev && fileInput) {
-    avatarPrev.style.cursor = 'pointer';
-    avatarPrev.title = 'Click to change avatar';
-    avatarPrev.onclick = () => fileInput.click();
-  }
-  const saveAvBtn = document.getElementById('settingsSaveAvatarBtn');
-  if (saveAvBtn) saveAvBtn.onclick = saveSettingsAvatar;
-
-  const logoutBtn = document.getElementById('settingsLogoutBtn');
-  if (logoutBtn) logoutBtn.onclick = logoutToSignup;
+  // Lightweight guards with logs (inline handlers already set)
+  console.log('[Settings] buttons wired via inline handlers');
 }
+
+// Ensure global access for inline handlers and external calls
+try {
+  window.openSettings = window.openSettings || openSettings;
+  window.renderSettingsProfile = window.renderSettingsProfile || renderSettingsProfile;
+  window.openAvatarPalette = window.openAvatarPalette || openAvatarPalette;
+  window.onSettingsAvatarFileSelected = window.onSettingsAvatarFileSelected || onSettingsAvatarFileSelected;
+  window.openAvatarCameraDialog = window.openAvatarCameraDialog || openAvatarCameraDialog;
+  window.saveSettingsAvatar = window.saveSettingsAvatar || saveSettingsAvatar;
+  window.logoutToSignup = window.logoutToSignup || logoutToSignup;
+} catch {}
 
 async function saveSettingsAvatar() {
   const prev = document.getElementById('settingsAvatarPreview');
