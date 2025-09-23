@@ -3619,6 +3619,58 @@ function openHelp() {
           <h4>What are achievements?</h4>
           <p>Complete challenges to unlock achievements and earn bonus XP!</p>
         </div>
+        <div class="faq-item">
+          <h4>How does the leaderboard work?</h4>
+          <p>The Global leaderboard ranks everyone by total XP. The Friends leaderboard ranks you and your friends. Your total XP comes from achievements and activities across the app.</p>
+        </div>
+        <div class="faq-item">
+          <h4>How do levels relate to XP?</h4>
+          <p>You gain XP from actions. XP accumulates toward your current level, and each level requires more XP than the previous. Your total XP is the sum of all XP you’ve earned.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Can I change my username or avatar?</h4>
+          <p>Yes. Go to Settings → Profile to update your username and avatar. Usernames must be lowercase letters and numbers and must be unique.</p>
+        </div>
+        <div class="faq-item">
+          <h4>How do I add friends?</h4>
+          <p>Open Friends → Add Friends, search by their username, and send a request. When they accept, you’ll see them in My Friends and on the Friends leaderboard.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Why don’t I see my friend’s XP updating?</h4>
+          <p>XP updates in real-time for most actions, but some actions may sync with a short delay. Try refreshing the Leaderboard or re-opening Friends.</p>
+        </div>
+        <div class="faq-item">
+          <h4>How do I use voice input?</h4>
+          <p>Click the microphone button on the main screen. Grant browser permission to use your microphone. Speak clearly and wait for the transcription.</p>
+        </div>
+        <div class="faq-item">
+          <h4>How do I solve image-based questions?</h4>
+          <p>Use the camera or upload a photo in the Past Question section. We’ll extract the content and generate a solution. Make sure the image is clear and readable.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Where can I find my saved answers and flashcards?</h4>
+          <p>Saved items are stored in your account and can be accessed from the relevant sections. They’re also backed up on the server when you’re signed in.</p>
+        </div>
+        <div class="faq-item">
+          <h4>What are the daily limits?</h4>
+          <p>Free plans have daily limits for certain features (responses, notes, image solutions, etc.). Upgrading your plan increases or removes these limits.</p>
+        </div>
+        <div class="faq-item">
+          <h4>How do I change the theme?</h4>
+          <p>Open Settings → Theme & Appearance to switch between Light and Dark themes.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Privacy: what data do you store?</h4>
+          <p>We store essential profile data (username, avatar) and learning data (XP, achievements, saved items) to provide a consistent experience across devices.</p>
+        </div>
+        <div class="faq-item">
+          <h4>How do I report an issue or give feedback?</h4>
+          <p>Use the Feedback/Support option (if available) or contact us via the website. Include details and screenshots to help us investigate.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Why is my email verification required?</h4>
+          <p>Email verification protects your account and helps us keep your data safe. If you didn’t receive a code, check spam or request another.</p>
+        </div>
       </div>
     </div>
   `;
