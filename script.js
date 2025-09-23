@@ -3185,6 +3185,30 @@ function renderLeaderboardList(entries, highlightUid) {
 
 async function fetchGlobalLeaderboard() {
   const highlightUid = auth.currentUser?.uid || null;
+  // 1) Try Firestore directly if available
+  try {
+    if (window.db) {
+      let snap;
+      try {
+        // Prefer ordering by totalXP if present
+        snap = await db.collection('users').orderBy('totalXP', 'desc').limit(50).get();
+      } catch {
+        // Fallback: no totalXP field or index; just read first 50 docs (unordered)
+        snap = await db.collection('users').limit(50).get();
+      }
+      const entries = [];
+      snap.forEach(doc => {
+        const d = doc.data() || {};
+        const username = d.username || '(unknown)';
+        const avatar = d.avatar || '👤';
+        const totalXP = (typeof d.totalXP === 'number') ? d.totalXP : getTotalXPFromProfileLike({ level: d.level, xp: d.xp });
+        entries.push({ userId: doc.id, username, avatar, totalXP });
+      });
+      return { entries, highlightUid };
+    }
+  } catch {}
+
+  // 2) Try backend endpoint
   try {
     const token = await getAuthToken();
     const res = await fetch(`${BACKEND_URL}/api/leaderboard/global`, { headers: { 'Authorization': `Bearer ${token}` } });
