@@ -33,20 +33,6 @@ const DEFAULT_AVATAR_SVGS = [
   'svg/turn-off-svgrepo-com.svg',
   'svg/umbrella-svgrepo-com.svg'
 ];
-
-// Helper to render avatar values properly (emoji vs. image path/URL)
-function renderAvatar(avatar) {
-  const val = typeof avatar === 'string' ? avatar.trim() : '';
-  if (!val) return '👤';
-  const isImg = /\.(svg|png|jpg|jpeg|gif|webp)$/i.test(val) || val.startsWith('http') || val.startsWith('data:') || val.startsWith('svg/');
-  if (isImg) {
-    const safeSrc = val.replace(/"/g, '&quot;');
-    return `<img src="${safeSrc}" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">`;
-  }
-  // Otherwise assume it's an emoji or short text icon
-  return val;
-}
-
 const PROFILE_KEY = 'tutorbotProfile';
 const USERNAME_CHANGES_KEY = 'tutorbotUsernameChanges';
 const XP_KEY = 'tutorbotXP';
@@ -1079,164 +1065,7 @@ function stopProcess() {
 
 }
 
-// Toast/notification helper
-function showToast(message, onClick) {
-  try {
-    const container = document.getElementById('notificationsContainer');
-    if (!container) return;
-    const toast = document.createElement('div');
-    toast.style.background = '#111827';
-    toast.style.color = '#e5e7eb';
-    toast.style.border = '1px solid #374151';
-    toast.style.borderRadius = '10px';
-    toast.style.padding = '10px 12px';
-    toast.style.boxShadow = '0 8px 20px rgba(0,0,0,0.35)';
-    toast.style.cursor = onClick ? 'pointer' : 'default';
-    toast.textContent = message;
-    if (onClick) toast.onclick = () => { try { onClick(); } finally { toast.remove(); } };
-    container.appendChild(toast);
-    setTimeout(() => { toast.remove(); }, 5000);
-  } catch {}
-}
 
-// Small click animation for feature icons (referenced in index.html)
-function addFeatureIconClickEffect(el) {
-  try {
-    if (!el) return;
-    el.style.transition = 'transform 120ms ease';
-    el.style.transform = 'scale(0.95)';
-    setTimeout(() => { el.style.transform = 'scale(1)'; }, 120);
-  } catch {}
-}
-
-// Modal utility functions
-function openModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-  }
-}
-
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-  }
-}
-
-// Friends system
-function openFriends() {
-  openModal('friendsModal');
-  const content = document.getElementById('friendsContent');
-  if (content) {
-    content.innerHTML = `
-      <div class="friends-tabs">
-        <button class="tab-btn active" onclick="switchFriendsTab('my')">My Friends</button>
-        <button class="tab-btn" onclick="switchFriendsTab('add')">Add Friends</button>
-        <button class="tab-btn" onclick="switchFriendsTab('inbox')">Inbox</button>
-      </div>
-      <div id="friendsTabContent" class="friends-tab-content">
-        Loading friends...
-      </div>
-    `;
-  }
-  switchFriendsTab('my');
-  // Start friend request polling
-  if (!window.__friendReqPollingStarted) {
-    startFriendRequestPolling();
-    window.__friendReqPollingStarted = true;
-  }
-}
-
-async function switchFriendsTab(tab) {
-  // Update tab buttons
-  document.querySelectorAll('.friends-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelector(`.friends-tabs .tab-btn:nth-child(${tab === 'my' ? 1 : tab === 'add' ? 2 : 3})`).classList.add('active');
-  
-  const container = document.getElementById('friendsTabContent');
-  if (!container) return;
-  
-  if (tab === 'my') {
-    container.innerHTML = '<p>Loading friends...</p>';
-    try {
-      const resp = await friendsApi('/list');
-      if (!resp.ok) throw new Error('Failed to load friends');
-      const data = await resp.json();
-      const friends = data.friends || [];
-      if (friends.length === 0) {
-        container.innerHTML = '<p>No friends yet. Add some friends!</p>';
-      } else {
-        container.innerHTML = friends.map(f => friendListItemHtml(f)).join('');
-      }
-    } catch (e) {
-      container.innerHTML = `<p style="color:#ef4444;">Failed to load friends: ${e.message}</p>`;
-    }
-  } else if (tab === 'add') {
-    await renderAddFriends(container);
-  } else if (tab === 'inbox') {
-    container.innerHTML = '<p>Loading requests...</p>';
-    try {
-      const resp = await friendsApi('/requests');
-      if (!resp.ok) throw new Error('Failed to load requests');
-      const data = await resp.json();
-      const requests = data.requests || [];
-      if (requests.length === 0) {
-        container.innerHTML = '<p>No pending friend requests.</p>';
-      } else {
-        container.innerHTML = requests.map(r => `
-          <div class="request-item" style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:10px;margin:6px 0;">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <div class="avatar">${renderAvatar(r.fromProfile?.avatar || '👤')}</div>
-              <div class="name">${r.fromUsername || '(unknown)'}</div>
-            </div>
-            <div style="display:flex;gap:8px;">
-              <button onclick="acceptFriend('${r.fromUserId}')" style="background:#22c55e;color:white;border:none;padding:4px 8px;border-radius:6px;">Accept</button>
-              <button onclick="rejectFriend('${r.fromUserId}')" style="background:#ef4444;color:white;border:none;padding:4px 8px;border-radius:6px;">Reject</button>
-            </div>
-          </div>
-        `).join('');
-      }
-    } catch (e) {
-      container.innerHTML = `<p style="color:#ef4444;">Failed to load requests: ${e.message}</p>`;
-    }
-  }
-}
-
-// Friends API helper
-async function friendsApi(endpoint, options = {}) {
-  const token = await getAuthToken();
-  return fetch(`${BACKEND_URL}/api/friends${endpoint}`, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      ...options.headers
-    }
-  });
-}
-
-// Games placeholder
-function openGames() {
-  openModal('gamesModal');
-  const content = document.getElementById('gamesContent');
-  if (content) {
-    content.innerHTML = `
-      <div class="games-grid">
-        <div class="game-card">
-          <h3>🎯 Quiz Challenge</h3>
-          <p>Test your knowledge with timed quizzes</p>
-          <button onclick="alert('Quiz game coming soon!')">Play Now</button>
-        </div>
-        <div class="game-card">
-          <h3>🧠 Memory Match</h3>
-          <p>Match concepts with definitions</p>
-          <button onclick="alert('Memory game coming soon!')">Play Now</button>
-        </div>
-      </div>
-    `;
-  }
-}
 
 async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
     outputElement.innerHTML = `<em>${loadingMessage}</em>`;
@@ -2770,6 +2599,423 @@ function addPricingCardKeyboardSupport() {
   });
 }
 
+function promptRenewPlan() {
+  document.getElementById('upgradeModal').style.display = 'flex';
+  document.getElementById('response').innerHTML = `<div class="limit-message-box">Your subscription has expired. Please renew to continue enjoying your plan benefits.</div>`;
+  document.getElementById('response').style.display = 'block';
+};
+
+// Legacy function for backward compatibility
+function promptRenewPlus() {
+  promptRenewPlan();
+};
+
+// Added this function for testing
+function resetDailyLimits() {
+    localStorage.removeItem('tutorbotDailyUsage');
+    initializeDailyUsage();
+    console.log('Daily limits reset!');
+}
+
+// Test function for the new pricing system
+function testPricingSystem() {
+    console.log('=== Testing Pricing System ===');
+    
+    // Test plan limits
+    console.log('Plan Limits:', PLAN_LIMITS);
+    
+    // Test current user plan
+    const currentPlan = getUserPlan();
+    console.log('Current User Plan:', currentPlan);
+    
+    // Test plan limits for current user
+    const currentLimits = PLAN_LIMITS[currentPlan];
+    console.log('Current User Limits:', currentLimits);
+    
+    // Test daily usage
+    console.log('Current Daily Usage:', dailyUsage);
+    
+    // Test if user is premium
+    console.log('Is Premium User:', isPlusUser());
+    
+    console.log('=== Test Complete ===');
+}
+
+// Test function for API connection
+async function testAPIConnection() {
+    console.log('=== Testing API Connection ===');
+    
+    try {
+        const user = auth.currentUser;
+        if (!user) {
+            console.log('❌ No authenticated user');
+            return;
+        }
+        
+        const idToken = await user.getIdToken();
+        console.log('✅ User authenticated');
+        
+        const response = await fetch(`${BACKEND_URL}/api/ai/test`, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + idToken
+            }
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ API test successful:', data);
+        } else {
+            const errorText = await response.text();
+            console.log('❌ API test failed:', errorText);
+        }
+    } catch (error) {
+        console.log('❌ API test error:', error);
+    }
+    
+    console.log('=== API Test Complete ===');
+}
+
+// ===== FEATURE SYSTEM =====
+
+// Modal Management
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
+
+function openModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Add click outside to close functionality
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        closeModal(modalId);
+      }
+    });
+  }
+}
+
+// Add click effect to feature icons
+function addFeatureIconClickEffect(iconElement) {
+  // Remove clicked class from all icons
+  document.querySelectorAll('.feature-icon').forEach(icon => {
+    icon.classList.remove('clicked');
+  });
+  
+  // Add clicked class to current icon
+  iconElement.classList.add('clicked');
+  
+  // Remove clicked class after animation
+  setTimeout(() => {
+    iconElement.classList.remove('clicked');
+  }, 200);
+}
+
+// ===== ACHIEVEMENTS SYSTEM =====
+
+const ACHIEVEMENTS = {
+  // Beginner Achievements (Easy - 25-50 XP)
+  first_question: { name: "First Steps", description: "Ask your first question", xp: 25, icon: "🌟", difficulty: "easy", target: 1, type: "questionsAsked" },
+  first_flashcard: { name: "Memory Master", description: "Generate your first flashcard", xp: 25, icon: "🧠", difficulty: "easy", target: 1, type: "flashcardsGenerated" },
+  first_quiz: { name: "Quiz Rookie", description: "Complete your first quiz", xp: 30, icon: "📝", difficulty: "easy", target: 1, type: "quizzesCompleted" },
+  first_notes: { name: "Note Taker", description: "Generate your first notes", xp: 25, icon: "📚", difficulty: "easy", target: 1, type: "notesGenerated" },
+  first_save: { name: "Collector", description: "Save your first answer", xp: 20, icon: "💾", difficulty: "easy", target: 1, type: "answersSaved" },
+  early_bird: { name: "Early Bird", description: "Use TutorBot before 8 AM", xp: 30, icon: "🌅", difficulty: "easy", target: 1, type: "earlyUsage" },
+  night_owl: { name: "Night Owl", description: "Use TutorBot after 10 PM", xp: 30, icon: "🦉", difficulty: "easy", target: 1, type: "lateUsage" },
+  quick_learner: { name: "Quick Learner", description: "Complete 3 tasks in 5 minutes", xp: 40, icon: "⚡", difficulty: "easy", target: 1, type: "quickTasks" },
+  
+  // Intermediate Achievements (Medium - 75-150 XP)
+  question_streak_5: { name: "Curious Mind", description: "Ask 5 questions in a day", xp: 75, icon: "🤔", difficulty: "medium", target: 5, type: "dailyQuestions" },
+  quiz_master_5: { name: "Quiz Champion", description: "Complete 5 quizzes", xp: 100, icon: "🏆", difficulty: "medium", target: 5, type: "quizzesCompleted" },
+  perfect_quiz: { name: "Perfect Score", description: "Get 100% on a quiz", xp: 150, icon: "💯", difficulty: "medium", target: 1, type: "perfectQuizzes" },
+  flashcard_creator: { name: "Card Creator", description: "Generate 10 flashcards", xp: 100, icon: "🎴", difficulty: "medium", target: 10, type: "flashcardsGenerated" },
+  note_scholar: { name: "Scholar", description: "Generate notes on 5 different topics", xp: 125, icon: "🎓", difficulty: "medium", target: 5, type: "uniqueTopics" },
+  consistent_learner: { name: "Consistent Learner", description: "Use TutorBot 3 days in a row", xp: 120, icon: "📅", difficulty: "medium", target: 3, type: "consecutiveDays" },
+  subject_explorer: { name: "Subject Explorer", description: "Ask questions in 5 different subjects", xp: 100, icon: "🗺️", difficulty: "medium", target: 5, type: "subjectsUsed" },
+  speed_reader: { name: "Speed Reader", description: "Generate 20 notes", xp: 130, icon: "📖", difficulty: "medium", target: 20, type: "notesGenerated" },
+  quiz_streak: { name: "Quiz Streak", description: "Complete 3 quizzes in a row", xp: 110, icon: "🎯", difficulty: "medium", target: 3, type: "quizStreak" },
+  helper_friend: { name: "Helper Friend", description: "Save 15 answers to help others", xp: 90, icon: "🤝", difficulty: "medium", target: 15, type: "answersSaved" },
+  
+  // Advanced Achievements (Hard - 200-500 XP)
+  question_master_50: { name: "Question Master", description: "Ask 50 questions", xp: 300, icon: "", difficulty: "hard", target: 50, type: "questionsAsked" },
+  quiz_legend: { name: "Quiz Legend", description: "Complete 25 quizzes", xp: 400, icon: "", difficulty: "hard", target: 25, type: "quizzesCompleted" },
+  knowledge_seeker: { name: "Knowledge Seeker", description: "Use all TutorBot features", xp: 250, icon: "", difficulty: "hard", target: 6, type: "featuresUsed" },
+  streak_warrior: { name: "Streak Warrior", description: "Use TutorBot for 7 consecutive days", xp: 500, icon: "", difficulty: "hard", target: 7, type: "consecutiveDays" },
+  subject_expert: { name: "Subject Expert", description: "Ask questions in all 8 subjects", xp: 350, icon: "", difficulty: "hard", target: 8, type: "subjectsUsed" },
+  flashcard_master: { name: "Flashcard Master", description: "Generate 50 flashcards", xp: 400, icon: "", difficulty: "hard", target: 50, type: "flashcardsGenerated" },
+  note_genius: { name: "Note Genius", description: "Generate 100 notes", xp: 450, icon: "", difficulty: "hard", target: 100, type: "notesGenerated" },
+  perfect_student: { name: "Perfect Student", description: "Get perfect scores on 10 quizzes", xp: 600, icon: "", difficulty: "hard", target: 10, type: "perfectQuizzes" },
+  dedication_master: { name: "Dedication Master", description: "Use TutorBot for 30 days", xp: 800, icon: "", difficulty: "hard", target: 30, type: "totalDays" },
+  question_champion: { name: "Question Champion", description: "Ask 100 questions", xp: 500, icon: "", difficulty: "hard", target: 100, type: "questionsAsked" },
+  study_marathon: { name: "Study Marathon", description: "Study for 5 hours in one day", xp: 350, icon: "", difficulty: "hard", target: 300, type: "dailyMinutes" },
+  weekend_warrior: { name: "Weekend Warrior", description: "Use TutorBot every weekend for a month", xp: 400, icon: "", difficulty: "hard", target: 8, type: "weekendSessions" },
+  achievement_hunter: { name: "Achievement Hunter", description: "Unlock 20 achievements", xp: 1000, icon: "", difficulty: "hard", target: 20, type: "achievementsUnlocked" }
+};
+
+// In-memory caches (user-scoped)
+let userAchievements = {};
+let achievementStats = {};
+
+// Keys for user-scoped storage
+const ACHIEVEMENTS_KEY = 'userAchievements';
+const ACHIEVEMENT_STATS_KEY = 'achievementStats';
+
+// Get a user-scoped key for localStorage using Firebase UID
+function getUserScopedKey(key) {
+  const uid = (window.auth && auth.currentUser && auth.currentUser.uid) ? auth.currentUser.uid : null;
+  if (!uid) return null;
+  return `${uid}:${key}`;
+}
+
+function loadAchievementsFromStorage() {
+  try {
+    const aKey = getUserScopedKey(ACHIEVEMENTS_KEY);
+    const sKey = getUserScopedKey(ACHIEVEMENT_STATS_KEY);
+    if (aKey) userAchievements = JSON.parse(localStorage.getItem(aKey) || '{}'); else userAchievements = {};
+    if (sKey) achievementStats = JSON.parse(localStorage.getItem(sKey) || '{}'); else achievementStats = {};
+  } catch {
+    userAchievements = {}; achievementStats = {};
+  }
+}
+
+function saveAchievementsToStorage() {
+  const aKey = getUserScopedKey(ACHIEVEMENTS_KEY);
+  if (aKey) localStorage.setItem(aKey, JSON.stringify(userAchievements));
+}
+
+function saveStatsToStorage() {
+  const sKey = getUserScopedKey(ACHIEVEMENT_STATS_KEY);
+  if (sKey) localStorage.setItem(sKey, JSON.stringify(achievementStats));
+}
+
+function checkAchievement(achievementId) {
+  if (userAchievements[achievementId]) return; // Already unlocked
+  
+  const achievement = ACHIEVEMENTS[achievementId];
+  if (!achievement) return;
+  
+  const currentValue = achievementStats[achievement.type] || 0;
+  const unlocked = currentValue >= achievement.target;
+  
+  if (unlocked) {
+    unlockAchievement(achievementId);
+  }
+}
+
+function getAchievementProgress(achievementId) {
+  const achievement = ACHIEVEMENTS[achievementId];
+  if (!achievement) return 0;
+  
+  const currentValue = achievementStats[achievement.type] || 0;
+  return Math.min(currentValue / achievement.target, 1);
+}
+
+async function unlockAchievement(achievementId) {
+  const achievement = ACHIEVEMENTS[achievementId];
+  if (!achievement) return;
+
+  // Optimistically mark as unlocked locally to prevent duplicate checks/notifications
+  if (!userAchievements[achievementId]) {
+    userAchievements[achievementId] = {
+      unlockedAt: new Date().toISOString(),
+      ...achievement
+    };
+    saveAchievementsToStorage();
+  }
+
+  // Sync to backend and use its response as the source of truth for XP application
+  try {
+    const res = await syncAchievementToBackend(achievementId, achievement);
+    if (res && res.success) {
+      // Only award/apply XP if this achievement was newly created server-side
+      if (res.created) {
+        // Apply authoritative totalXP from backend if provided; otherwise award locally
+        if (typeof res.totalXP === 'number') {
+          applyBackendXPToProfile(res.totalXP);
+        } else {
+          // Fallback: award locally
+          await awardXP(achievement.xp);
+        }
+        showAchievementNotification(achievement);
+        console.log(`🏆 Achievement Unlocked: ${achievement.name} (+${achievement.xp} XP)`);
+      } else {
+        // Already unlocked server-side; ensure we render with backend XP if available
+        if (typeof res.totalXP === 'number') {
+          const localTotal = computeTotalXPFromLocal();
+          if (res.totalXP >= localTotal) {
+            applyBackendXPToProfile(res.totalXP);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to sync unlock to backend:', e);
+  }
+}
+
+function showAchievementNotification(achievement) {
+  const notification = document.createElement('div');
+  notification.className = 'achievement-notification';
+  notification.innerHTML = `
+    <div class="achievement-content">
+      <div class="achievement-icon">${achievement.icon}</div>
+      <div class="achievement-text">
+        <div class="achievement-title">Achievement Unlocked!</div>
+        <div class="achievement-name">${achievement.name}</div>
+        <div class="achievement-xp">+${achievement.xp} XP</div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // Animate in
+  setTimeout(() => notification.classList.add('show'), 100);
+  
+  // Remove after 4 seconds
+  setTimeout(() => {
+    notification.classList.remove('show');
+    setTimeout(() => notification.remove(), 300);
+  }, 4000);
+}
+
+function updateAchievementStat(stat, increment = 1) {
+  achievementStats[stat] = (achievementStats[stat] || 0) + increment;
+  saveStatsToStorage();
+  
+  // Sync to backend
+  syncAchievementStatsToBackend(stat, achievementStats[stat]);
+  
+  // Check all achievements after updating stats
+  Object.keys(ACHIEVEMENTS).forEach(checkAchievement);
+}
+
+// Sync achievement stats to backend
+async function syncAchievementStatsToBackend(statType, value) {
+  try {
+    const token = await getAuthToken();
+    if (!token) return;
+    
+    await fetch(`${BACKEND_URL}/api/achievements/stats`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        statType,
+        value,
+        timestamp: new Date().toISOString()
+      })
+    });
+  } catch (error) {
+    console.log('Failed to sync achievement stats to backend:', error);
+  }
+}
+
+// Sync unlocked achievement to backend and return server response
+async function syncAchievementToBackend(achievementId, achievement) {
+  try {
+    const token = await getAuthToken();
+    if (!token) return;
+    
+    const resp = await fetch(`${BACKEND_URL}/api/achievements/unlock`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        achievementId,
+        achievement,
+        unlockedAt: new Date().toISOString(),
+        xpAwarded: achievement.xp
+      })
+    });
+    if (resp && resp.ok) {
+      return await resp.json();
+    }
+    return null;
+  } catch (error) {
+    console.log('Failed to sync achievement to backend:', error);
+  }
+}
+
+// Load achievements from backend
+async function loadAchievementsFromBackend() {
+  try {
+    const token = await getAuthToken();
+    if (!token) return;
+    
+    const response = await fetch(`${BACKEND_URL}/api/achievements/user`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      // Update local storage with backend data (do not overwrite with empty objects)
+      if (data.achievements && Object.keys(data.achievements || {}).length > 0) {
+        userAchievements = data.achievements;
+        saveAchievementsToStorage();
+      }
+      
+      if (data.stats && Object.keys(data.stats || {}).length > 0) {
+        achievementStats = data.stats;
+        saveStatsToStorage();
+      }
+
+      // Apply backend XP to local level/xp if provided
+      if (typeof data.totalXP === 'number') {
+        // Only apply backend XP if it is authoritative (>= local computed)
+        const localTotal = computeTotalXPFromLocal();
+        if (data.totalXP >= localTotal) {
+          applyBackendXPToProfile(data.totalXP);
+        }
+      }
+      
+      console.log('Achievements loaded from backend');
+      
+      // Refresh achievements modal if it's open
+      if (document.getElementById('achievementsModal').style.display === 'flex') {
+        loadAchievementsContent();
+      }
+    }
+  } catch (error) {
+    console.log('Failed to load achievements from backend:', error);
+  }
+}
+
+// Convert backend total XP into local level + in-level XP and update UI/storage
+function applyBackendXPToProfile(totalXP) {
+  let remaining = Math.max(0, Math.floor(totalXP));
+  let level = 1;
+  while (true) {
+    const needed = xpNeededForLevel(level);
+    if (remaining < needed) break;
+    remaining -= needed;
+    level += 1;
+    // Safety cap to avoid infinite loops
+    if (level > 1000) break;
+  }
+  setStoredLevel(level);
+  setStoredXP(remaining);
+  const profile = getStoredProfile() || {};
+  profile.level = level;
+  profile.xp = remaining;
+  setStoredProfile(profile);
+  renderProfileHeader(profile);
+}
+
 function openAchievements() {
   openModal('achievementsModal');
   loadAchievementsContent();
@@ -2866,7 +3112,7 @@ function generateSampleLeaderboard() {
       <div class="leaderboard-item top-1">
         <div class="rank">🥇</div>
         <div class="user-info">
-          <div class="avatar">${renderAvatar('🎓')}</div>
+          <div class="avatar">🎓</div>
           <div class="username">StudyMaster2024</div>
         </div>
         <div class="xp">15,420 XP</div>
@@ -2874,7 +3120,7 @@ function generateSampleLeaderboard() {
       <div class="leaderboard-item current-user">
         <div class="rank">#4</div>
         <div class="user-info">
-          <div class="avatar">${renderAvatar(currentUser?.avatar || '👤')}</div>
+          <div class="avatar">${currentUser?.avatar || '👤'}</div>
           <div class="username">${currentUser?.username || 'You'}</div>
         </div>
         <div class="xp">${currentXP || 0} XP</div>
@@ -2883,7 +3129,99 @@ function generateSampleLeaderboard() {
   `;
 }
 
+// ===== GAMES SYSTEM =====
+function openGames() {
+  openModal('gamesModal');
+  document.getElementById('gamesContent').innerHTML = `
+    <div class="games-header">
+      <h3>🎮 Educational Games</h3>
+      <p>Play games to learn and earn XP!</p>
+    </div>
+    <div class="games-grid">
+      <div class="game-card" onclick="playGame('math_quiz')">
+        <div class="game-icon">🔢</div>
+        <div class="game-info">
+          <h5>Math Quiz</h5>
+          <p>Test your math skills</p>
+          <span class="xp-reward">+50 XP</span>
+        </div>
+      </div>
+      <div class="game-card" onclick="playGame('science_lab')">
+        <div class="game-icon">🧪</div>
+        <div class="game-info">
+          <h5>Science Lab</h5>
+          <p>Virtual experiments</p>
+          <span class="xp-reward">+60 XP</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function playGame(gameId) {
+  alert(`Launching ${gameId}...`);
+}
+
 // ===== FRIENDS SYSTEM =====
+function openFriends() {
+  openModal('friendsModal');
+  const content = document.getElementById('friendsContent');
+  content.innerHTML = `
+    <div class="friends-tabs">
+      <button id="friendsTabMy" class="tab-btn active" onclick="switchFriendsTab('my')">My Friends</button>
+      <button id="friendsTabAdd" class="tab-btn" onclick="switchFriendsTab('add')">Add Friends</button>
+      <button id="friendsTabInbox" class="tab-btn" onclick="switchFriendsTab('inbox')">Inbox</button>
+    </div>
+    <div id="friendsTabContent" class="friends-tab-content"></div>
+  `;
+  switchFriendsTab('my');
+}
+
+async function switchFriendsTab(tab) {
+  try {
+    document.getElementById('friendsTabMy').classList.toggle('active', tab === 'my');
+    document.getElementById('friendsTabAdd').classList.toggle('active', tab === 'add');
+    document.getElementById('friendsTabInbox').classList.toggle('active', tab === 'inbox');
+  } catch {}
+  const container = document.getElementById('friendsTabContent');
+  if (!container) return;
+  if (tab === 'my') {
+    await renderMyFriends(container);
+  } else if (tab === 'add') {
+    renderAddFriends(container);
+  } else if (tab === 'inbox') {
+    await renderInbox(container);
+  }
+}
+
+async function friendsApi(path, options = {}) {
+  const token = await getAuthToken();
+  const headers = Object.assign({ 'Authorization': `Bearer ${token}` }, options.headers || {});
+  const resp = await fetch(`${BACKEND_URL}/api/friends${path}`, { ...options, headers });
+  return resp;
+}
+
+async function renderMyFriends(container) {
+  container.innerHTML = '<p>Loading friends...</p>';
+  try {
+    const resp = await friendsApi('/list');
+    if (!resp.ok) throw new Error('Failed to load friends');
+    const data = await resp.json();
+    const friends = data.friends || [];
+    if (friends.length === 0) {
+      container.innerHTML = '<p>No friends yet. Go to Add Friends to connect!</p>';
+      return;
+    }
+    container.innerHTML = `
+      <div class="friends-list">
+        ${friends.map(f => friendListItemHtml(f)).join('')}
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<p style="color:#ef4444;">${e.message}</p>`;
+  }
+}
+
 function friendListItemHtml(f) {
   const username = f.profile?.username || '(unknown)';
   const avatar = f.profile?.avatar || '👤';
@@ -2891,7 +3229,7 @@ function friendListItemHtml(f) {
   return `
     <div class="friend-item" data-uid="${userId}" style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:10px;margin:6px 0;">
       <div style="display:flex;align-items:center;gap:10px;">
-        <div class="avatar">${renderAvatar(avatar)}</div>
+        <div class="avatar">${avatar}</div>
         <div class="name">${username}</div>
         <button class="info-btn" title="View profile" onclick="viewFriendProfile('${userId}')">ℹ️</button>
       </div>
@@ -2904,7 +3242,7 @@ function friendListItemHtml(f) {
   `;
 }
 
-async function renderAddFriends(container) {
+function renderAddFriends(container) {
   container.innerHTML = `
     <div class="friend-search" style="display:flex;gap:8px;">
       <input type="text" id="friendSearch" placeholder="Enter username (lowercase, numbers)">
@@ -2912,6 +3250,35 @@ async function renderAddFriends(container) {
     </div>
     <div id="friendSearchResult" style="margin-top:10px;"></div>
   `;
+}
+
+async function renderInbox(container) {
+  container.innerHTML = '<p>Loading requests...</p>';
+  try {
+    const resp = await friendsApi('/requests');
+    if (!resp.ok) throw new Error('Failed to load requests');
+    const data = await resp.json();
+    const requests = data.requests || [];
+    if (requests.length === 0) {
+      container.innerHTML = '<p>No friend requests.</p>';
+      return;
+    }
+    container.innerHTML = `
+      <div class="requests-list">
+        ${requests.map(r => `
+          <div class="request-item" style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:10px;margin:6px 0;">
+            <div>Request from <strong>${r.fromUsername || r.fromUid}</strong></div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="acceptFriend('${r.id}')">Accept</button>
+              <button onclick="rejectFriend('${r.id}')">Reject</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<p style="color:#ef4444;">${e.message}</p>`;
+  }
 }
 
 async function searchFriend() {
@@ -2934,7 +3301,7 @@ async function searchFriend() {
     if (resultBox) resultBox.innerHTML = `
       <div class="search-item" style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:10px;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <div class="avatar">${renderAvatar(p.avatar || '👤')}</div>
+          <div class="avatar">${p.avatar || '👤'}</div>
           <div class="name">${p.username || username}</div>
         </div>
         <div>
@@ -2956,12 +3323,12 @@ async function sendFriendRequest(username) {
     });
     if (!resp.ok) {
       const err = await resp.json().catch(()=>({ error: 'Failed to send request' }));
-      showToast(err.error || 'Failed to send request');
+      alert(err.error || 'Failed to send request');
       return;
     }
-    showToast('Friend request sent!');
+    alert('Friend request sent!');
   } catch (e) {
-    showToast('Failed: ' + e.message);
+    alert('Failed: ' + e.message);
   }
 }
 
@@ -2975,9 +3342,8 @@ async function acceptFriend(fromUserId) {
     if (!resp.ok) throw new Error('Failed to accept');
     await switchFriendsTab('inbox');
     await switchFriendsTab('my');
-    showToast('Friend request accepted');
   } catch (e) {
-    showToast('Failed: ' + e.message);
+    alert('Failed: ' + e.message);
   }
 }
 
@@ -2990,9 +3356,8 @@ async function rejectFriend(fromUserId) {
     });
     if (!resp.ok) throw new Error('Failed to reject');
     await switchFriendsTab('inbox');
-    showToast('Friend request rejected');
   } catch (e) {
-    showToast('Failed: ' + e.message);
+    alert('Failed: ' + e.message);
   }
 }
 
@@ -3002,9 +3367,8 @@ async function removeFriend(friendUserId) {
     const resp = await friendsApi(`/remove/${friendUserId}`, { method: 'DELETE' });
     if (!resp.ok) throw new Error('Failed to remove');
     await switchFriendsTab('my');
-    showToast('Friend removed');
   } catch (e) {
-    showToast('Failed: ' + e.message);
+    alert('Failed: ' + e.message);
   }
 }
 
@@ -3016,52 +3380,16 @@ async function viewFriendProfile(userId) {
     const p = data.profile || {};
     const level = p.level || 1;
     const xp = p.xp || 0;
-    const achievements = data.achievements || p.achievements || [];
-    const content = document.getElementById('friendProfileContent');
-    if (content) {
-      content.innerHTML = `
-        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
-          <div style="width:84px;height:84px;border-radius:50%;overflow:hidden;background:#0b1220;border:2px solid #334155;display:flex;align-items:center;justify-content:center;">
-            ${renderAvatar(p.avatar || '👤')}
-          </div>
-          <div style="font-weight:600;font-size:1.1em;">${p.username || '(unknown)'}</div>
-          <div style="color:#64748b;">Level ${level} • ${xp} XP</div>
-        </div>
-        <hr style="margin:12px 0;border-color:rgba(0,0,0,0.08);">
-        <div>
-          <h3 style="margin:6px 0;">Achievements</h3>
-          ${achievements && achievements.length ? `
-            <div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;\">
-              ${achievements.map(a => `
-                <div style=\"border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:8px;background:#f8fafc;\">
-                  <div style=\"font-size:18px;\">${a.icon || '🏆'}</div>
-                  <div style=\"font-weight:600;\">${a.name || ''}</div>
-                  <div style=\"font-size:0.85em;color:#64748b;\">+${a.xp || 0} XP</div>
-                </div>
-              `).join('')}
-            </div>
-          ` : '<p style="color:#64748b;">No achievements to display.</p>'}
-        </div>
-      `;
-    }
-    openModal('friendProfileModal');
+    alert(`Friend Profile\nUsername: ${p.username || ''}\nLevel: ${level}\nXP: ${xp}`);
   } catch (e) {
-    showToast('Failed to load profile: ' + e.message);
+    alert('Failed to load profile: ' + e.message);
   }
 }
 
 async function openMessageThread(withUserId, username) {
   const container = document.getElementById('friendsTabContent');
   if (!container) return;
-  container.innerHTML = `<div>
-    <button onclick="switchFriendsTab('my')">← Back</button>
-    <h3>Chat with ${username}</h3>
-    <div id="messagesBox" style="height:300px;overflow:auto;border:1px solid rgba(0,0,0,0.1);padding:10px;border-radius:12px;margin:8px 0;background:#0b1220;"></div>
-    <div style="display:flex;gap:8px;">
-      <input type="text" id="messageInput" placeholder="Type a message..." style="flex:1;">
-      <button id="sendMsgBtn">Send</button>
-    </div>
-  </div>`;
+  container.innerHTML = `<div><button onclick="switchFriendsTab('my')">← Back</button><h3>Chat with ${username}</h3><div id=\"messagesBox\" style=\"height:250px;overflow:auto;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:8px;margin:8px 0;\">Loading...</div><div style=\"display:flex;gap:8px;\"><input type=\"text\" id=\"messageInput\" placeholder=\"Type a message...\" style=\"flex:1;\"><button id=\"sendMsgBtn\">Send</button></div></div>`;
   await loadMessages(withUserId);
   const sendBtn = document.getElementById('sendMsgBtn');
   if (sendBtn) sendBtn.onclick = async () => {
@@ -3076,36 +3404,13 @@ async function openMessageThread(withUserId, username) {
       if (resp.ok) {
         document.getElementById('messageInput').value = '';
         await loadMessages(withUserId);
-        showToast(`Message sent to ${username}`);
       } else {
-        showToast('Failed to send message');
+        alert('Failed to send message');
       }
     } catch (e) {
-      showToast('Failed to send message: ' + e.message);
+      alert('Failed to send message: ' + e.message);
     }
   };
-
-  // Start polling for new messages in this thread
-  if (window.__messagePoller) clearInterval(window.__messagePoller);
-  window.__lastMsgCount = 0;
-  window.__messagePoller = setInterval(async () => {
-    try {
-      const resp = await friendsApi(`/messages/${withUserId}?limit=100`);
-      if (!resp.ok) return;
-      const data = await resp.json();
-      const msgs = data.messages || [];
-      if (msgs.length !== window.__lastMsgCount) {
-        const myId = auth.currentUser?.uid;
-        const latest = msgs[msgs.length - 1];
-        const isIncoming = latest && latest.from !== myId;
-        await loadMessages(withUserId);
-        if (isIncoming) {
-          showToast(`New message from ${username}`);
-        }
-        window.__lastMsgCount = msgs.length;
-      }
-    } catch {}
-  }, 5000);
 }
 
 async function loadMessages(withUserId) {
@@ -3116,41 +3421,12 @@ async function loadMessages(withUserId) {
     const data = await resp.json();
     const msgs = data.messages || [];
     const myId = auth.currentUser?.uid;
-    if (box) box.innerHTML = msgs.map(m => {
-      const mine = m.from === myId;
-      const align = mine ? 'flex-end' : 'flex-start';
-      const bg = mine ? '#22c55e' : '#f1f5f9';
-      const color = mine ? '#062b12' : '#111827';
-      return `<div style="display:flex;justify-content:${align};margin:6px 0;">
-        <div style="max-width:70%;padding:8px 10px;border-radius:12px;background:${bg};color:${color};word-wrap:break-word;white-space:pre-wrap;">${(m.text||'').replace(/</g,'&lt;')}</div>
-      </div>`;
-    }).join('');
+    if (box) box.innerHTML = msgs.map(m => `<div style=\"margin:4px 0;${m.from===myId?'text-align:right;':''}\"><span style=\"display:inline-block;background:${m.from===myId?'#e0ffe8':'#f1f5f9'};padding:6px 8px;border-radius:8px;\">${(m.text||'').replace(/</g,'&lt;')}</span></div>`).join('');
     if (box) box.scrollTop = box.scrollHeight;
   } catch (e) {
     const box = document.getElementById('messagesBox');
     if (box) box.innerHTML = `<p style=\"color:#ef4444;\">${e.message}</p>`;
   }
-}
-
-// Friend request notifications polling
-function startFriendRequestPolling() {
-  if (window.__friendReqPoll) clearInterval(window.__friendReqPoll);
-  window.__friendReqCount = -1;
-  window.__friendReqPoll = setInterval(async () => {
-    try {
-      const resp = await friendsApi('/requests');
-      if (!resp.ok) return;
-      const data = await resp.json();
-      const list = data.requests || [];
-      if (window.__friendReqCount === -1) { window.__friendReqCount = list.length; return; }
-      if (list.length > window.__friendReqCount) {
-        const r = list[0] || {};
-        const name = r.fromUsername || 'Someone';
-        showToast(`New friend request from ${name}`);
-      }
-      window.__friendReqCount = list.length;
-    } catch {}
-  }, 12000);
 }
 
 async function openChallenge(toUserId, username) {
