@@ -2225,7 +2225,7 @@ function setupAchievementListeners() {
       if (prevJson !== nextJson) {
         console.log('🔄 Achievements changed via Firestore');
         userAchievements = next;
-        localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
+        saveAchievementsToStorage();
 
         // If modal is open, re-render
         const modal = document.getElementById('achievementsModal');
@@ -2259,7 +2259,7 @@ function setupAchievementListeners() {
         if (prevJson !== nextJson) {
           console.log('📈 Achievement stats changed via Firestore');
           achievementStats = data.achievementStats;
-          localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
+          saveStatsToStorage();
           const modal = document.getElementById('achievementsModal');
           if (modal && modal.style.display === 'flex') {
             loadAchievementsContent();
@@ -2522,7 +2522,12 @@ document.addEventListener('DOMContentLoaded', () => {
     auth.onAuthStateChanged((user) => {
       if (user) {
         console.log('🔐 User authenticated, loading achievements...');
-        // Load achievements from backend only after authentication
+        // Clean up legacy unscoped keys (one-time migration)
+        try { localStorage.removeItem('userAchievements'); } catch {}
+        try { localStorage.removeItem('achievementStats'); } catch {}
+        // Load user-scoped cached achievements/stats first
+        loadAchievementsFromStorage();
+        // Then load from backend after authentication
         loadAchievementsFromBackend();
         setupAchievementListeners();
       } else {
@@ -2532,6 +2537,12 @@ document.addEventListener('DOMContentLoaded', () => {
           clearInterval(window.achievementPollInterval);
           window.achievementPollInterval = null;
         }
+        // Clear in-memory caches on logout
+        userAchievements = {};
+        achievementStats = {};
+        // Optional: clean legacy keys
+        try { localStorage.removeItem('userAchievements'); } catch {}
+        try { localStorage.removeItem('achievementStats'); } catch {}
       }
     });
   }
@@ -2750,8 +2761,41 @@ const ACHIEVEMENTS = {
   achievement_hunter: { name: "Achievement Hunter", description: "Unlock 20 achievements", xp: 1000, icon: "", difficulty: "hard", target: 20, type: "achievementsUnlocked" }
 };
 
-let userAchievements = JSON.parse(localStorage.getItem('userAchievements') || '{}');
-let achievementStats = JSON.parse(localStorage.getItem('achievementStats') || '{}');
+// In-memory caches (user-scoped)
+let userAchievements = {};
+let achievementStats = {};
+
+// Keys for user-scoped storage
+const ACHIEVEMENTS_KEY = 'userAchievements';
+const ACHIEVEMENT_STATS_KEY = 'achievementStats';
+
+// Get a user-scoped key for localStorage using Firebase UID
+function getUserScopedKey(key) {
+  const uid = (window.auth && auth.currentUser && auth.currentUser.uid) ? auth.currentUser.uid : null;
+  if (!uid) return null;
+  return `${uid}:${key}`;
+}
+
+function loadAchievementsFromStorage() {
+  try {
+    const aKey = getUserScopedKey(ACHIEVEMENTS_KEY);
+    const sKey = getUserScopedKey(ACHIEVEMENT_STATS_KEY);
+    if (aKey) userAchievements = JSON.parse(localStorage.getItem(aKey) || '{}'); else userAchievements = {};
+    if (sKey) achievementStats = JSON.parse(localStorage.getItem(sKey) || '{}'); else achievementStats = {};
+  } catch {
+    userAchievements = {}; achievementStats = {};
+  }
+}
+
+function saveAchievementsToStorage() {
+  const aKey = getUserScopedKey(ACHIEVEMENTS_KEY);
+  if (aKey) localStorage.setItem(aKey, JSON.stringify(userAchievements));
+}
+
+function saveStatsToStorage() {
+  const sKey = getUserScopedKey(ACHIEVEMENT_STATS_KEY);
+  if (sKey) localStorage.setItem(sKey, JSON.stringify(achievementStats));
+}
 
 function checkAchievement(achievementId) {
   if (userAchievements[achievementId]) return; // Already unlocked
@@ -2785,7 +2829,7 @@ async function unlockAchievement(achievementId) {
       unlockedAt: new Date().toISOString(),
       ...achievement
     };
-    localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
+    saveAchievementsToStorage();
   }
 
   // Sync to backend and use its response as the source of truth for XP application
@@ -2846,7 +2890,7 @@ function showAchievementNotification(achievement) {
 
 function updateAchievementStat(stat, increment = 1) {
   achievementStats[stat] = (achievementStats[stat] || 0) + increment;
-  localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
+  saveStatsToStorage();
   
   // Sync to backend
   syncAchievementStatsToBackend(stat, achievementStats[stat]);
@@ -2922,12 +2966,12 @@ async function loadAchievementsFromBackend() {
       // Update local storage with backend data (do not overwrite with empty objects)
       if (data.achievements && Object.keys(data.achievements || {}).length > 0) {
         userAchievements = data.achievements;
-        localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
+        saveAchievementsToStorage();
       }
       
       if (data.stats && Object.keys(data.stats || {}).length > 0) {
         achievementStats = data.stats;
-        localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
+        saveStatsToStorage();
       }
 
       // Apply backend XP to local level/xp if provided
