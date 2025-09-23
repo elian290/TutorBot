@@ -2376,6 +2376,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeDailyUsage(); // Load daily usage immediately
   updateSpeechControlButtons();
   
+  // Load achievements from backend
+  loadAchievementsFromBackend();
+  
   // Add keyboard navigation for pricing cards
   addPricingCardKeyboardSupport();
   
@@ -2553,25 +2556,41 @@ function addFeatureIconClickEffect(iconElement) {
 
 const ACHIEVEMENTS = {
   // Beginner Achievements (Easy - 25-50 XP)
-  first_question: { name: "First Steps", description: "Ask your first question", xp: 25, icon: "🌟", difficulty: "easy" },
-  first_flashcard: { name: "Memory Master", description: "Generate your first flashcard", xp: 25, icon: "🧠", difficulty: "easy" },
-  first_quiz: { name: "Quiz Rookie", description: "Complete your first quiz", xp: 30, icon: "📝", difficulty: "easy" },
-  first_notes: { name: "Note Taker", description: "Generate your first notes", xp: 25, icon: "📚", difficulty: "easy" },
-  first_save: { name: "Collector", description: "Save your first answer", xp: 20, icon: "💾", difficulty: "easy" },
+  first_question: { name: "First Steps", description: "Ask your first question", xp: 25, icon: "🌟", difficulty: "easy", target: 1, type: "questionsAsked" },
+  first_flashcard: { name: "Memory Master", description: "Generate your first flashcard", xp: 25, icon: "🧠", difficulty: "easy", target: 1, type: "flashcardsGenerated" },
+  first_quiz: { name: "Quiz Rookie", description: "Complete your first quiz", xp: 30, icon: "📝", difficulty: "easy", target: 1, type: "quizzesCompleted" },
+  first_notes: { name: "Note Taker", description: "Generate your first notes", xp: 25, icon: "📚", difficulty: "easy", target: 1, type: "notesGenerated" },
+  first_save: { name: "Collector", description: "Save your first answer", xp: 20, icon: "💾", difficulty: "easy", target: 1, type: "answersSaved" },
+  early_bird: { name: "Early Bird", description: "Use TutorBot before 8 AM", xp: 30, icon: "🌅", difficulty: "easy", target: 1, type: "earlyUsage" },
+  night_owl: { name: "Night Owl", description: "Use TutorBot after 10 PM", xp: 30, icon: "🦉", difficulty: "easy", target: 1, type: "lateUsage" },
+  quick_learner: { name: "Quick Learner", description: "Complete 3 tasks in 5 minutes", xp: 40, icon: "⚡", difficulty: "easy", target: 1, type: "quickTasks" },
   
   // Intermediate Achievements (Medium - 75-150 XP)
-  question_streak_5: { name: "Curious Mind", description: "Ask 5 questions in a day", xp: 75, icon: "🤔", difficulty: "medium" },
-  quiz_master_5: { name: "Quiz Champion", description: "Complete 5 quizzes", xp: 100, icon: "🏆", difficulty: "medium" },
-  perfect_quiz: { name: "Perfect Score", description: "Get 100% on a quiz", xp: 150, icon: "💯", difficulty: "medium" },
-  flashcard_creator: { name: "Card Creator", description: "Generate 10 flashcards", xp: 100, icon: "🎴", difficulty: "medium" },
-  note_scholar: { name: "Scholar", description: "Generate notes on 5 different topics", xp: 125, icon: "🎓", difficulty: "medium" },
+  question_streak_5: { name: "Curious Mind", description: "Ask 5 questions in a day", xp: 75, icon: "🤔", difficulty: "medium", target: 5, type: "dailyQuestions" },
+  quiz_master_5: { name: "Quiz Champion", description: "Complete 5 quizzes", xp: 100, icon: "🏆", difficulty: "medium", target: 5, type: "quizzesCompleted" },
+  perfect_quiz: { name: "Perfect Score", description: "Get 100% on a quiz", xp: 150, icon: "💯", difficulty: "medium", target: 1, type: "perfectQuizzes" },
+  flashcard_creator: { name: "Card Creator", description: "Generate 10 flashcards", xp: 100, icon: "🎴", difficulty: "medium", target: 10, type: "flashcardsGenerated" },
+  note_scholar: { name: "Scholar", description: "Generate notes on 5 different topics", xp: 125, icon: "🎓", difficulty: "medium", target: 5, type: "uniqueTopics" },
+  consistent_learner: { name: "Consistent Learner", description: "Use TutorBot 3 days in a row", xp: 120, icon: "📅", difficulty: "medium", target: 3, type: "consecutiveDays" },
+  subject_explorer: { name: "Subject Explorer", description: "Ask questions in 5 different subjects", xp: 100, icon: "🗺️", difficulty: "medium", target: 5, type: "subjectsUsed" },
+  speed_reader: { name: "Speed Reader", description: "Generate 20 notes", xp: 130, icon: "📖", difficulty: "medium", target: 20, type: "notesGenerated" },
+  quiz_streak: { name: "Quiz Streak", description: "Complete 3 quizzes in a row", xp: 110, icon: "🎯", difficulty: "medium", target: 3, type: "quizStreak" },
+  helper_friend: { name: "Helper Friend", description: "Save 15 answers to help others", xp: 90, icon: "🤝", difficulty: "medium", target: 15, type: "answersSaved" },
   
   // Advanced Achievements (Hard - 200-500 XP)
-  question_master_50: { name: "Question Master", description: "Ask 50 questions", xp: 300, icon: "🧙‍♂️", difficulty: "hard" },
-  quiz_legend: { name: "Quiz Legend", description: "Complete 25 quizzes", xp: 400, icon: "👑", difficulty: "hard" },
-  knowledge_seeker: { name: "Knowledge Seeker", description: "Use all TutorBot features", xp: 250, icon: "🔍", difficulty: "hard" },
-  streak_warrior: { name: "Streak Warrior", description: "Use TutorBot for 7 consecutive days", xp: 500, icon: "🔥", difficulty: "hard" },
-  subject_expert: { name: "Subject Expert", description: "Ask questions in all subjects", xp: 350, icon: "🎯", difficulty: "hard" }
+  question_master_50: { name: "Question Master", description: "Ask 50 questions", xp: 300, icon: "", difficulty: "hard", target: 50, type: "questionsAsked" },
+  quiz_legend: { name: "Quiz Legend", description: "Complete 25 quizzes", xp: 400, icon: "", difficulty: "hard", target: 25, type: "quizzesCompleted" },
+  knowledge_seeker: { name: "Knowledge Seeker", description: "Use all TutorBot features", xp: 250, icon: "", difficulty: "hard", target: 6, type: "featuresUsed" },
+  streak_warrior: { name: "Streak Warrior", description: "Use TutorBot for 7 consecutive days", xp: 500, icon: "", difficulty: "hard", target: 7, type: "consecutiveDays" },
+  subject_expert: { name: "Subject Expert", description: "Ask questions in all 8 subjects", xp: 350, icon: "", difficulty: "hard", target: 8, type: "subjectsUsed" },
+  flashcard_master: { name: "Flashcard Master", description: "Generate 50 flashcards", xp: 400, icon: "", difficulty: "hard", target: 50, type: "flashcardsGenerated" },
+  note_genius: { name: "Note Genius", description: "Generate 100 notes", xp: 450, icon: "", difficulty: "hard", target: 100, type: "notesGenerated" },
+  perfect_student: { name: "Perfect Student", description: "Get perfect scores on 10 quizzes", xp: 600, icon: "", difficulty: "hard", target: 10, type: "perfectQuizzes" },
+  dedication_master: { name: "Dedication Master", description: "Use TutorBot for 30 days", xp: 800, icon: "", difficulty: "hard", target: 30, type: "totalDays" },
+  question_champion: { name: "Question Champion", description: "Ask 100 questions", xp: 500, icon: "", difficulty: "hard", target: 100, type: "questionsAsked" },
+  study_marathon: { name: "Study Marathon", description: "Study for 5 hours in one day", xp: 350, icon: "", difficulty: "hard", target: 300, type: "dailyMinutes" },
+  weekend_warrior: { name: "Weekend Warrior", description: "Use TutorBot every weekend for a month", xp: 400, icon: "", difficulty: "hard", target: 8, type: "weekendSessions" },
+  achievement_hunter: { name: "Achievement Hunter", description: "Unlock 20 achievements", xp: 1000, icon: "", difficulty: "hard", target: 20, type: "achievementsUnlocked" }
 };
 
 let userAchievements = JSON.parse(localStorage.getItem('userAchievements') || '{}');
@@ -2583,57 +2602,20 @@ function checkAchievement(achievementId) {
   const achievement = ACHIEVEMENTS[achievementId];
   if (!achievement) return;
   
-  let unlocked = false;
-  
-  // Check achievement conditions
-  switch(achievementId) {
-    case 'first_question':
-      unlocked = (achievementStats.questionsAsked || 0) >= 1;
-      break;
-    case 'first_flashcard':
-      unlocked = (achievementStats.flashcardsGenerated || 0) >= 1;
-      break;
-    case 'first_quiz':
-      unlocked = (achievementStats.quizzesCompleted || 0) >= 1;
-      break;
-    case 'first_notes':
-      unlocked = (achievementStats.notesGenerated || 0) >= 1;
-      break;
-    case 'first_save':
-      unlocked = (achievementStats.answersSaved || 0) >= 1;
-      break;
-    case 'question_streak_5':
-      unlocked = (achievementStats.dailyQuestions || 0) >= 5;
-      break;
-    case 'quiz_master_5':
-      unlocked = (achievementStats.quizzesCompleted || 0) >= 5;
-      break;
-    case 'perfect_quiz':
-      unlocked = (achievementStats.perfectQuizzes || 0) >= 1;
-      break;
-    case 'flashcard_creator':
-      unlocked = (achievementStats.flashcardsGenerated || 0) >= 10;
-      break;
-    case 'note_scholar':
-      unlocked = (achievementStats.uniqueTopics || 0) >= 5;
-      break;
-    case 'question_master_50':
-      unlocked = (achievementStats.questionsAsked || 0) >= 50;
-      break;
-    case 'quiz_legend':
-      unlocked = (achievementStats.quizzesCompleted || 0) >= 25;
-      break;
-    case 'knowledge_seeker':
-      unlocked = (achievementStats.featuresUsed || 0) >= 6;
-      break;
-    case 'subject_expert':
-      unlocked = (achievementStats.subjectsUsed || 0) >= 8;
-      break;
-  }
+  const currentValue = achievementStats[achievement.type] || 0;
+  const unlocked = currentValue >= achievement.target;
   
   if (unlocked) {
     unlockAchievement(achievementId);
   }
+}
+
+function getAchievementProgress(achievementId) {
+  const achievement = ACHIEVEMENTS[achievementId];
+  if (!achievement) return 0;
+  
+  const currentValue = achievementStats[achievement.type] || 0;
+  return Math.min(currentValue / achievement.target, 1);
 }
 
 function unlockAchievement(achievementId) {
@@ -2645,13 +2627,16 @@ function unlockAchievement(achievementId) {
   
   localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
   
+  // Sync to backend
+  syncAchievementToBackend(achievementId, achievement);
+  
   // Award XP
   awardXP(achievement.xp);
   
   // Show achievement notification
   showAchievementNotification(achievement);
   
-  console.log(` Achievement Unlocked: ${achievement.name} (+${achievement.xp} XP)`);
+  console.log(`🏆 Achievement Unlocked: ${achievement.name} (+${achievement.xp} XP)`);
 }
 
 function showAchievementNotification(achievement) {
@@ -2684,8 +2669,89 @@ function updateAchievementStat(stat, increment = 1) {
   achievementStats[stat] = (achievementStats[stat] || 0) + increment;
   localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
   
+  // Sync to backend
+  syncAchievementStatsToBackend(stat, achievementStats[stat]);
+  
   // Check all achievements after updating stats
   Object.keys(ACHIEVEMENTS).forEach(checkAchievement);
+}
+
+// Sync achievement stats to backend
+async function syncAchievementStatsToBackend(statType, value) {
+  try {
+    const token = await getAuthToken();
+    if (!token) return;
+    
+    await fetch(`${BACKEND_URL}/api/achievements/stats`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        statType,
+        value,
+        timestamp: new Date().toISOString()
+      })
+    });
+  } catch (error) {
+    console.log('Failed to sync achievement stats to backend:', error);
+  }
+}
+
+// Sync unlocked achievement to backend
+async function syncAchievementToBackend(achievementId, achievement) {
+  try {
+    const token = await getAuthToken();
+    if (!token) return;
+    
+    await fetch(`${BACKEND_URL}/api/achievements/unlock`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        achievementId,
+        achievement,
+        unlockedAt: new Date().toISOString(),
+        xpAwarded: achievement.xp
+      })
+    });
+  } catch (error) {
+    console.log('Failed to sync achievement to backend:', error);
+  }
+}
+
+// Load achievements from backend
+async function loadAchievementsFromBackend() {
+  try {
+    const token = await getAuthToken();
+    if (!token) return;
+    
+    const response = await fetch(`${BACKEND_URL}/api/achievements/user`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      // Update local storage with backend data
+      if (data.achievements) {
+        userAchievements = data.achievements;
+        localStorage.setItem('userAchievements', JSON.stringify(userAchievements));
+      }
+      
+      if (data.stats) {
+        achievementStats = data.stats;
+        localStorage.setItem('achievementStats', JSON.stringify(achievementStats));
+      }
+      
+      console.log('✅ Achievements loaded from backend');
+    }
+  } catch (error) {
+    console.log('Failed to load achievements from backend:', error);
+  }
 }
 
 function openAchievements() {
@@ -2713,18 +2779,31 @@ function loadAchievementsContent() {
   
   Object.entries(ACHIEVEMENTS).forEach(([id, achievement]) => {
     const isUnlocked = userAchievements[id];
-    const difficultyClass = achievement.difficulty;
+    const progress = getAchievementProgress(id);
+    const currentValue = achievementStats[achievement.type] || 0;
+    const isInProgress = progress > 0 && progress < 1;
+    
+    let statusClass = 'locked';
+    if (isUnlocked) statusClass = 'unlocked';
+    else if (isInProgress) statusClass = 'in-progress';
     
     html += `
-      <div class="achievement-card ${isUnlocked ? 'unlocked' : 'locked'} ${difficultyClass}">
+      <div class="achievement-card ${statusClass}">
         <div class="achievement-icon">${achievement.icon}</div>
         <div class="achievement-info">
           <h4>${achievement.name}</h4>
           <p>${achievement.description}</p>
-          <div class="achievement-xp">+${achievement.xp} XP</div>
-          ${isUnlocked ? `<div class="unlock-date">Unlocked: ${new Date(isUnlocked.unlockedAt).toLocaleDateString()}</div>` : ''}
         </div>
-        <div class="difficulty-badge ${difficultyClass}">${achievement.difficulty}</div>
+        <div class="achievement-meta">
+          <div class="difficulty-badge ${achievement.difficulty}">${achievement.difficulty}</div>
+          <div class="achievement-xp">+${achievement.xp} XP</div>
+          ${!isUnlocked ? `
+            <div class="achievement-progress">${currentValue}/${achievement.target}</div>
+            <div class="achievement-progress-bar">
+              <div class="achievement-progress-fill" style="width: ${progress * 100}%"></div>
+            </div>
+          ` : '<div class="achievement-progress">✓ Complete</div>'}
+        </div>
       </div>
     `;
   });
