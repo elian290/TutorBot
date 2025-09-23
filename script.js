@@ -3092,16 +3092,14 @@ function openLeaderboard() {
   openModal('leaderboardModal');
   document.getElementById('leaderboardContent').innerHTML = `
     <div class="leaderboard-tabs">
-      <button class="tab-btn active" onclick="switchLeaderboardTab('global')">🌍 Global</button>
-      <button class="tab-btn" onclick="switchLeaderboardTab('friends')">👥 Friends</button>
+      <button id="lbTabGlobal" class="tab-btn active" onclick="switchLeaderboardTab('global')">🌍 Global</button>
+      <button id="lbTabFriends" class="tab-btn" onclick="switchLeaderboardTab('friends')">👥 Friends</button>
     </div>
-    <div id="globalLeaderboard" class="leaderboard-section">
-      ${generateSampleLeaderboard()}
-    </div>
-    <div id="friendsLeaderboard" class="leaderboard-section" style="display: none;">
-      <p>Add friends to see friends leaderboard!</p>
+    <div id="leaderboardSection" class="leaderboard-section">
+      <p>Loading leaderboard...</p>
     </div>
   `;
+  switchLeaderboardTab('global');
 }
 
 function generateSampleLeaderboard() {
@@ -3112,7 +3110,7 @@ function generateSampleLeaderboard() {
       <div class="leaderboard-item top-1">
         <div class="rank">🥇</div>
         <div class="user-info">
-          <div class="avatar">🎓</div>
+          <div class="avatar">${renderAvatar('🎓')}</div>
           <div class="username">StudyMaster2024</div>
         </div>
         <div class="xp">15,420 XP</div>
@@ -3120,13 +3118,120 @@ function generateSampleLeaderboard() {
       <div class="leaderboard-item current-user">
         <div class="rank">#4</div>
         <div class="user-info">
-          <div class="avatar">${currentUser?.avatar || '👤'}</div>
+          <div class="avatar">${renderAvatar(currentUser?.avatar || '👤')}</div>
           <div class="username">${currentUser?.username || 'You'}</div>
         </div>
         <div class="xp">${currentXP || 0} XP</div>
       </div>
     </div>
   `;
+}
+
+async function switchLeaderboardTab(tab) {
+  try {
+    const sec = document.getElementById('leaderboardSection');
+    if (!sec) return;
+    const tabG = document.getElementById('lbTabGlobal');
+    const tabF = document.getElementById('lbTabFriends');
+    if (tabG && tabF) {
+      tabG.classList.toggle('active', tab === 'global');
+      tabF.classList.toggle('active', tab === 'friends');
+    }
+    sec.innerHTML = '<p>Loading leaderboard...</p>';
+
+    if (tab === 'global') {
+      const data = await fetchGlobalLeaderboard();
+      sec.innerHTML = renderLeaderboardList(data.entries, data.highlightUid);
+    } else {
+      const data = await fetchFriendsLeaderboard();
+      sec.innerHTML = renderLeaderboardList(data.entries, data.highlightUid);
+    }
+  } catch (e) {
+    const sec = document.getElementById('leaderboardSection');
+    if (sec) sec.innerHTML = `<p style="color:#ef4444;">Failed to load leaderboard: ${e.message}</p>`;
+  }
+}
+
+function getTotalXPFromProfileLike(obj) {
+  // Prefer explicit totalXP, else derive from level+xp
+  if (typeof obj.totalXP === 'number') return obj.totalXP;
+  const level = obj.level || 1;
+  let total = 0;
+  for (let l = 1; l < level; l++) total += xpNeededForLevel(l);
+  total += (obj.xp || 0);
+  return total;
+}
+
+function renderLeaderboardList(entries, highlightUid) {
+  if (!entries || entries.length === 0) {
+    return '<p>No data to display.</p>';
+  }
+  const sorted = [...entries].sort((a,b) => (b.totalXP||0) - (a.totalXP||0));
+  return `
+    <div class="leaderboard-list">
+      ${sorted.map((u, idx) => `
+        <div class="leaderboard-item ${u.userId===highlightUid?'current-user':''}">
+          <div class="rank">${idx+1}</div>
+          <div class="user-info">
+            <div class="avatar">${renderAvatar(u.avatar || '👤')}</div>
+            <div class="username">${u.username || '(unknown)'}</div>
+          </div>
+          <div class="xp">${u.totalXP || 0} XP</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function fetchGlobalLeaderboard() {
+  const highlightUid = auth.currentUser?.uid || null;
+  try {
+    const token = await getAuthToken();
+    const res = await fetch(`${BACKEND_URL}/api/leaderboard/global`, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) {
+      const list = await res.json();
+      // Expect array of { userId, username, avatar, totalXP }
+      return { entries: Array.isArray(list) ? list : [], highlightUid };
+    }
+  } catch {}
+  // Fallback: show current user only + sample top
+  const p = getStoredProfile() || {};
+  const me = { userId: highlightUid || 'me', username: p.username || 'You', avatar: p.avatar || '👤', totalXP: computeTotalXPFromLocal() };
+  const sample = [ { userId: 'sample1', username: 'StudyMaster2024', avatar: '🎓', totalXP: 15420 } ];
+  return { entries: [ ...sample, me ], highlightUid };
+}
+
+async function fetchFriendsLeaderboard() {
+  const highlightUid = auth.currentUser?.uid || null;
+  const entries = [];
+  try {
+    // Include self
+    const p = getStoredProfile() || {};
+    entries.push({ userId: highlightUid || 'me', username: p.username || 'You', avatar: p.avatar || '👤', totalXP: computeTotalXPFromLocal() });
+
+    // Load friends and fetch their profiles
+    const resp = await friendsApi('/list');
+    if (resp.ok) {
+      const data = await resp.json();
+      const friends = data.friends || [];
+      // Fetch profiles sequentially (friend count usually small); could be parallel if needed
+      for (const f of friends) {
+        const uid = f.userId;
+        try {
+          const r = await friendsApi(`/profile/${uid}`);
+          if (r.ok) {
+            const d = await r.json();
+            const prof = d.profile || {};
+            const username = prof.username || f.profile?.username || '(unknown)';
+            const avatar = prof.avatar || f.profile?.avatar || '👤';
+            const totalXP = getTotalXPFromProfileLike(prof);
+            entries.push({ userId: uid, username, avatar, totalXP });
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+  return { entries, highlightUid };
 }
 
 // ===== GAMES SYSTEM =====
