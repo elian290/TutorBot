@@ -1109,6 +1109,135 @@ function addFeatureIconClickEffect(el) {
   } catch {}
 }
 
+// Modal utility functions
+function openModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
+
+// Friends system
+function openFriends() {
+  openModal('friendsModal');
+  const content = document.getElementById('friendsContent');
+  if (content) {
+    content.innerHTML = `
+      <div class="friends-tabs">
+        <button class="tab-btn active" onclick="switchFriendsTab('my')">My Friends</button>
+        <button class="tab-btn" onclick="switchFriendsTab('add')">Add Friends</button>
+        <button class="tab-btn" onclick="switchFriendsTab('inbox')">Inbox</button>
+      </div>
+      <div id="friendsTabContent" class="friends-tab-content">
+        Loading friends...
+      </div>
+    `;
+  }
+  switchFriendsTab('my');
+  // Start friend request polling
+  if (!window.__friendReqPollingStarted) {
+    startFriendRequestPolling();
+    window.__friendReqPollingStarted = true;
+  }
+}
+
+async function switchFriendsTab(tab) {
+  // Update tab buttons
+  document.querySelectorAll('.friends-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelector(`.friends-tabs .tab-btn:nth-child(${tab === 'my' ? 1 : tab === 'add' ? 2 : 3})`).classList.add('active');
+  
+  const container = document.getElementById('friendsTabContent');
+  if (!container) return;
+  
+  if (tab === 'my') {
+    container.innerHTML = '<p>Loading friends...</p>';
+    try {
+      const resp = await friendsApi('/list');
+      if (!resp.ok) throw new Error('Failed to load friends');
+      const data = await resp.json();
+      const friends = data.friends || [];
+      if (friends.length === 0) {
+        container.innerHTML = '<p>No friends yet. Add some friends!</p>';
+      } else {
+        container.innerHTML = friends.map(f => friendListItemHtml(f)).join('');
+      }
+    } catch (e) {
+      container.innerHTML = `<p style="color:#ef4444;">Failed to load friends: ${e.message}</p>`;
+    }
+  } else if (tab === 'add') {
+    await renderAddFriends(container);
+  } else if (tab === 'inbox') {
+    container.innerHTML = '<p>Loading requests...</p>';
+    try {
+      const resp = await friendsApi('/requests');
+      if (!resp.ok) throw new Error('Failed to load requests');
+      const data = await resp.json();
+      const requests = data.requests || [];
+      if (requests.length === 0) {
+        container.innerHTML = '<p>No pending friend requests.</p>';
+      } else {
+        container.innerHTML = requests.map(r => `
+          <div class="request-item" style="display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(0,0,0,0.1);padding:8px;border-radius:10px;margin:6px 0;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="avatar">${renderAvatar(r.fromProfile?.avatar || '👤')}</div>
+              <div class="name">${r.fromUsername || '(unknown)'}</div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="acceptFriend('${r.fromUserId}')" style="background:#22c55e;color:white;border:none;padding:4px 8px;border-radius:6px;">Accept</button>
+              <button onclick="rejectFriend('${r.fromUserId}')" style="background:#ef4444;color:white;border:none;padding:4px 8px;border-radius:6px;">Reject</button>
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch (e) {
+      container.innerHTML = `<p style="color:#ef4444;">Failed to load requests: ${e.message}</p>`;
+    }
+  }
+}
+
+// Friends API helper
+async function friendsApi(endpoint, options = {}) {
+  const token = await getAuthToken();
+  return fetch(`${BACKEND_URL}/api/friends${endpoint}`, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      ...options.headers
+    }
+  });
+}
+
+// Games placeholder
+function openGames() {
+  openModal('gamesModal');
+  const content = document.getElementById('gamesContent');
+  if (content) {
+    content.innerHTML = `
+      <div class="games-grid">
+        <div class="game-card">
+          <h3>🎯 Quiz Challenge</h3>
+          <p>Test your knowledge with timed quizzes</p>
+          <button onclick="alert('Quiz game coming soon!')">Play Now</button>
+        </div>
+        <div class="game-card">
+          <h3>🧠 Memory Match</h3>
+          <p>Match concepts with definitions</p>
+          <button onclick="alert('Memory game coming soon!')">Play Now</button>
+        </div>
+      </div>
+    `;
+  }
+}
+
 async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
     outputElement.innerHTML = `<em>${loadingMessage}</em>`;
     outputElement.style.display = 'block';
