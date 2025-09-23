@@ -1099,6 +1099,16 @@ function showToast(message, onClick) {
   } catch {}
 }
 
+// Small click animation for feature icons (referenced in index.html)
+function addFeatureIconClickEffect(el) {
+  try {
+    if (!el) return;
+    el.style.transition = 'transform 120ms ease';
+    el.style.transform = 'scale(0.95)';
+    setTimeout(() => { el.style.transform = 'scale(1)'; }, 120);
+  } catch {}
+}
+
 async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
     outputElement.innerHTML = `<em>${loadingMessage}</em>`;
     outputElement.style.display = 'block';
