@@ -658,10 +658,9 @@ function updateUsageDisplay() {
       color: #94a3b8;
     `;
     
-    const container = document.querySelector('.container');
     const profileHeader = document.getElementById('profileHeader');
-    if (container && profileHeader) {
-      container.insertBefore(existingDisplay, profileHeader.nextSibling);
+    if (profileHeader && profileHeader.parentNode) {
+      profileHeader.parentNode.insertBefore(existingDisplay, profileHeader.nextSibling);
     }
   }
   
@@ -913,14 +912,26 @@ async function loginUser() {
         if (header) header.style.display = 'none';
       } catch {}
       
-      // Check if user has complete profile on backend
+      // Check if user has complete profile
       try {
-        const userProfile = await loadUserProfile();
-        if (userProfile && userProfile.username && userProfile.course) {
+        let userProfile = await loadUserProfile();
+        
+        // If backend fails, check localStorage
+        if (!userProfile || !userProfile.username) {
+          userProfile = getStoredProfile();
+        }
+        
+        // Also check for stored course separately
+        let course = userProfile?.course || localStorage.getItem('tutorbotCourse');
+        
+        if (userProfile && userProfile.username && course) {
           console.log('Existing user with complete profile, going directly to chatbot');
           
+          // Ensure course is in the profile
+          userProfile.course = course;
+          setStoredProfile(userProfile);
+          
           // Set up the course subjects
-          const course = userProfile.course;
           const subjectSelect = document.getElementById('subject');
           let subjects = [];
           if (course === 'science') {
