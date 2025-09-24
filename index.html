@@ -557,10 +557,10 @@
     </div>
 
     <button id="askTutorBotBtn" onclick="getResponse()">Ask TutorBot</button>
-    <button id="voiceInputBtn" class="microphone-button" onclick="checkPremiumFeature('voice')">🎤 Voice Input</button>
+    <button id="voiceInputBtn" class="microphone-button" onclick="startVoiceInput()">🎤 Voice Input</button>
 
     <div class="speech-controls">
-      <button id="speakAnswerBtn" class="speak-button" onclick="checkPremiumFeature('speech')">🔊 Read Answer</button>
+      <button id="speakAnswerBtn" class="speak-button" onclick="speakAnswer()">🔊 Read Answer</button>
       <button id="pauseSpeechBtn" class="pause-button" onclick="pauseSpeech()" style="display:none;">⏸️ Pause</button>
       <button id="resumeSpeechBtn" class="resume-button" onclick="resumeSpeech()" style="display:none;">▶️ Resume</button>
     </div>

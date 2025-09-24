@@ -3712,90 +3712,6 @@ function resolveExamIcon(img) {
       img.src = 'icons/nsmq.png';
     }
   } catch {}
-
-}
-
-// ===== USAGE TRACKING & LIMITS =====
-const FREE_PLAN_LIMITS = {
-  aiResponses: 5,
-  notes: 3,
-  imageSolutions: 2,
-  quizzes: 2,
-  flashcards: 3
-};
-
-function getTodayKey() {
-  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-}
-
-function getDailyUsage() {
-  const today = getTodayKey();
-  const stored = localStorage.getItem('dailyUsage');
-  let usage = {};
-  
-  try {
-    usage = JSON.parse(stored) || {};
-  } catch {}
-  
-  // Reset if it's a new day
-  if (!usage.date || usage.date !== today) {
-    usage = {
-      date: today,
-      aiResponses: 0,
-      notes: 0,
-      imageSolutions: 0,
-      quizzes: 0,
-      flashcards: 0
-    };
-    localStorage.setItem('dailyUsage', JSON.stringify(usage));
-  }
-  
-  return usage;
-}
-
-function incrementUsage(type) {
-  const usage = getDailyUsage();
-  usage[type] = (usage[type] || 0) + 1;
-  localStorage.setItem('dailyUsage', JSON.stringify(usage));
-  return usage[type];
-}
-
-function checkUsageLimit(type) {
-  const profile = getStoredProfile() || {};
-  const plan = profile.plan || 'free';
-  
-  // Paid plans have no limits
-  if (plan !== 'free') return { allowed: true };
-  
-  const usage = getDailyUsage();
-  const current = usage[type] || 0;
-  const limit = FREE_PLAN_LIMITS[type] || 0;
-  
-  return {
-    allowed: current < limit,
-    current: current,
-    limit: limit,
-    remaining: Math.max(0, limit - current)
-  };
-}
-
-function showUpgradePromptForLimit(type) {
-  const limit = FREE_PLAN_LIMITS[type] || 0;
-  const typeNames = {
-    aiResponses: 'AI responses',
-    notes: 'notes generations',
-    imageSolutions: 'image solutions',
-    quizzes: 'quizzes',
-    flashcards: 'flashcards'
-  };
-  
-  const typeName = typeNames[type] || type;
-  showToast(`Daily limit reached! Free plan: ${limit} ${typeName}/day. Upgrade for unlimited access!`, { type: 'warning', duration: 4000 });
-  
-  // Auto-open upgrade modal after a short delay
-  setTimeout(() => {
-    showUpgradePrompt();
-  }, 1500);
 }
 
 // Ensure global access for inline handlers and external calls
@@ -3809,9 +3725,6 @@ try {
   window.logoutToSignup = window.logoutToSignup || logoutToSignup;
   window.showToast = window.showToast || showToast;
   window.resolveExamIcon = window.resolveExamIcon || resolveExamIcon;
-  window.checkUsageLimit = window.checkUsageLimit || checkUsageLimit;
-  window.incrementUsage = window.incrementUsage || incrementUsage;
-  window.showUpgradePromptForLimit = window.showUpgradePromptForLimit || showUpgradePromptForLimit;
 } catch {}
 
 async function saveSettingsAvatar() {
