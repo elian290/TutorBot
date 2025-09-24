@@ -3633,6 +3633,87 @@ function renderSettingsProfile() {
   console.log('[Settings] buttons wired via inline handlers');
 }
 
+// ===== Toast Notifications =====
+function showToast(message, opts = {}) {
+  try {
+    const {
+      duration = 2200,
+      type = 'info', // 'info' | 'success' | 'warning' | 'error'
+    } = opts || {};
+
+    let container = document.getElementById('notificationsContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'notificationsContainer';
+      container.style.cssText = 'position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:99999;';
+      document.body.appendChild(container);
+    }
+
+    const colors = {
+      info: '#60a5fa',
+      success: '#22c55e',
+      warning: '#f59e0b',
+      error: '#ef4444',
+    };
+
+    const toast = document.createElement('div');
+    toast.setAttribute('role', 'status');
+    toast.style.cssText = `
+      background: rgba(2,6,23,0.92);
+      color: #e5e7eb;
+      border-left: 4px solid ${colors[type] || colors.info};
+      padding: 10px 12px;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      min-width: 220px;
+      max-width: 360px;
+      font-size: 14px;
+      line-height: 1.35;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .18s ease, transform .18s ease;
+    `;
+    toast.textContent = String(message || '');
+
+    container.appendChild(toast);
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
+
+    const remove = () => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(8px)';
+      setTimeout(() => {
+        if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 200);
+    };
+
+    const t = setTimeout(remove, Math.max(800, duration));
+    toast.addEventListener('click', () => { clearTimeout(t); remove(); });
+  } catch (e) {
+    try { alert(message); } catch {}
+  }
+}
+
+// Robust icon resolver for exam tiles (tries multiple extensions)
+function resolveExamIcon(img) {
+  try {
+    const name = img?.dataset?.name || '';
+    const attempt = parseInt(img?.dataset?.try || '1', 10);
+    const exts = ['png','jpg','jpeg','webp','svg','PNG','JPG','JPEG','WEBP','SVG'];
+    if (!name) return;
+    if (attempt < exts.length) {
+      img.dataset.try = String(attempt + 1);
+      img.src = `icons/${name}.${exts[attempt]}`;
+    } else {
+      // Final fallback to a known-good icon
+      img.onerror = null;
+      img.src = 'icons/nsmq.png';
+    }
+  } catch {}
+}
+
 // Ensure global access for inline handlers and external calls
 try {
   window.openSettings = window.openSettings || openSettings;
