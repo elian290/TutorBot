@@ -125,6 +125,7 @@ let dailyUsage = {
     flashcards: 0,
     lastResetDate: ''
 };
+
 function getTodayDateString() {
     const today = new Date();
     return today.toDateString();
@@ -142,12 +143,8 @@ function initializeDailyUsage() {
     } else {
         resetAllDailyUsage(); 
     }
-    console.log('Daily Usage initialized:', dailyUsage);
-
-    // Fire-and-forget cloud sync to enable cross-device limits (optional)
-    try { syncDailyUsageFromCloud(); } catch {}
+    console.log('Daily Usage Initialized:', dailyUsage);
 }
- 
 
 function resetAllDailyUsage() {
     dailyUsage = {
@@ -162,6 +159,47 @@ function resetAllDailyUsage() {
     };
     localStorage.setItem('tutorbotDailyUsage', JSON.stringify(dailyUsage));
     console.log('Daily Usage Reset:', dailyUsage);
+}
+
+
+function updateUsage(feature) {
+    try {
+        // Ensure usage object is initialized and date is current
+        if (!dailyUsage || !dailyUsage.lastResetDate || dailyUsage.lastResetDate !== getTodayDateString()) {
+            initializeDailyUsage();
+        }
+
+        if (typeof dailyUsage[feature] !== 'number') {
+            dailyUsage[feature] = 0;
+        }
+
+        dailyUsage[feature] += 1;
+        localStorage.setItem('tutorbotDailyUsage', JSON.stringify(dailyUsage));
+        console.log('Daily usage updated:', feature, dailyUsage[feature]);
+    } catch (e) {
+        console.warn('Failed to update usage for feature', feature, e);
+    }
+}
+
+function checkUsage(feature, limit, actionName, outputElement = null) {
+    const userPlan = getUserPlan();
+    const planLimits = PLAN_LIMITS[userPlan];
+    
+    if (userPlan === 'premium') return true; // No limits for Premium
+    
+    if (dailyUsage[feature] >= planLimits[feature]) {
+        const planName = userPlan.charAt(0).toUpperCase() + userPlan.slice(1);
+        const message = `You've reached your daily limit on the ${planName} plan. Upgrade to a higher plan for more access!`;
+        if (outputElement) {
+            outputElement.innerHTML = `<div class="limit-message-box">${message}</div>`;
+            outputElement.style.display = 'block';
+        } else {
+            document.getElementById('response').innerHTML = `<div class="limit-message-box">${message}</div>`;
+            document.getElementById('response').style.display = 'block';
+        }
+        return false;
+    }
+    return true;
 }
 // --- End Daily Usage Limits ---
 
