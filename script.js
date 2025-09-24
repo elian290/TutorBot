@@ -626,6 +626,69 @@ function renderProfileHeader(profile) {
   if (levelEl) levelEl.textContent = `Level ${level}`;
   if (xpFill) xpFill.style.width = pct + '%';
   if (xpText) xpText.textContent = `${xp} / ${needed} XP`;
+  
+  // Add usage display for free users
+  updateUsageDisplay();
+}
+
+function updateUsageDisplay() {
+  const profile = getStoredProfile() || {};
+  const plan = profile.plan || 'free';
+  
+  // Only show usage for free plan
+  if (plan !== 'free') {
+    const existingDisplay = document.getElementById('usageDisplay');
+    if (existingDisplay) existingDisplay.remove();
+    return;
+  }
+  
+  const usage = getDailyUsage();
+  let existingDisplay = document.getElementById('usageDisplay');
+  
+  if (!existingDisplay) {
+    existingDisplay = document.createElement('div');
+    existingDisplay.id = 'usageDisplay';
+    existingDisplay.style.cssText = `
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: 8px 0;
+      font-size: 0.8em;
+      color: #94a3b8;
+    `;
+    
+    const container = document.querySelector('.container');
+    const profileHeader = document.getElementById('profileHeader');
+    if (container && profileHeader) {
+      container.insertBefore(existingDisplay, profileHeader.nextSibling);
+    }
+  }
+  
+  const usageItems = [
+    { key: 'aiResponses', label: 'AI Responses', icon: '🤖' },
+    { key: 'notes', label: 'Notes', icon: '📝' },
+    { key: 'imageSolutions', label: 'Image Solutions', icon: '📷' },
+    { key: 'quizzes', label: 'Quizzes', icon: '🧪' },
+    { key: 'flashcards', label: 'Flashcards', icon: '📄' }
+  ];
+  
+  const usageHtml = usageItems.map(item => {
+    const current = usage[item.key] || 0;
+    const limit = FREE_PLAN_LIMITS[item.key] || 0;
+    const remaining = Math.max(0, limit - current);
+    const color = remaining === 0 ? '#ef4444' : remaining <= 1 ? '#f59e0b' : '#22c55e';
+    
+    return `<span style="color:${color}">${item.icon} ${remaining}/${limit}</span>`;
+  }).join(' • ');
+  
+  existingDisplay.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-weight:600;">Daily Limits:</span>
+      <button onclick="showUpgradePrompt()" style="background:#a78bfa;color:#fff;border:none;padding:2px 6px;border-radius:4px;font-size:0.7em;cursor:pointer;">Upgrade</button>
+    </div>
+    <div style="margin-top:4px;">${usageHtml}</div>
+  `;
 }
 
 function getStoredXP() { return parseInt(localStorage.getItem(getUserScopedKey(XP_KEY)) || '0', 10); }
@@ -1173,9 +1236,11 @@ async function getResponse() {
   console.log('getResponse() called');
   const responseBox = document.getElementById('response');
 
-  if (!checkUsage('responses', DAILY_LIMITS.responses, 'TutorBot responses', responseBox)) {
-      console.log('Usage limit reached');
-      return;
+  // Check usage limit for free plan
+  const limitCheck = checkUsageLimit('aiResponses');
+  if (!limitCheck.allowed) {
+    showUpgradePromptForLimit('aiResponses');
+    return;
   }
 
   const subject = document.getElementById('subject').value;
@@ -1201,7 +1266,7 @@ async function getResponse() {
       let cleanAnswer = answer.replace(/\*/g, ''); 
       responseBox.innerText = cleanAnswer;
       updateSpeechControlButtons(); 
-      updateUsage('responses'); 
+      incrementUsage('aiResponses'); 
       awardXP(50);
       
       // Update achievement stats
@@ -1216,9 +1281,11 @@ async function getResponse() {
 async function generateFlashcards() {
   const flashcardBox = document.getElementById('flashcard-box');
 
-  // Check daily usage limit for flashcards
-  if (!checkUsage('flashcards', PLAN_LIMITS[getUserPlan()].flashcards, 'flashcard generations', flashcardBox)) {
-      return;
+  // Check usage limit for free plan
+  const limitCheck = checkUsageLimit('flashcards');
+  if (!limitCheck.allowed) {
+    showUpgradePromptForLimit('flashcards');
+    return;
   }
 
   const question = document.getElementById('question').value.trim();
@@ -1236,7 +1303,7 @@ async function generateFlashcards() {
   const flashcardContent = await callGeminiAPI(promptParts, flashcardBox, "Crafting your flashcard...");
   if (flashcardContent) {
       flashcardBox.innerHTML = `<strong>Flashcard Generated:</strong><br>${flashcardContent}<br><br><button onclick="saveFlashcard()" class="continue-btn" style="margin-top: 10px;">💾 Save Flashcard</button>`;
-      updateUsage('flashcards');
+      incrementUsage('flashcards');
       awardXP(20);
       
       // Update achievement stats
@@ -1288,10 +1355,13 @@ async function saveFlashcard() {
 
 async function generateNotes() {
   const notesBox = document.getElementById('notes-box');
-  // Check daily usage limit
-  if (!checkUsage('notesGenerated', DAILY_LIMITS.notesGenerated, 'notes generations', notesBox)) {
-      document.getElementById('saveNotesPdfBtn').style.display = 'none'; // Hide PDF button if limit reached
-      return;
+  
+  // Check usage limit for free plan
+  const limitCheck = checkUsageLimit('notes');
+  if (!limitCheck.allowed) {
+    showUpgradePromptForLimit('notes');
+    document.getElementById('saveNotesPdfBtn').style.display = 'none';
+    return;
   }
 
   const subject = document.getElementById('subject').value;
@@ -1312,7 +1382,7 @@ async function generateNotes() {
   if (notesContent) {
       notesBox.innerHTML = `<strong>Notes on "${notesTopic}" (${subject}):</strong><br>${notesContent}`;
       saveNotesPdfBtn.style.display = 'block'; // Show PDF button if notes generated
-      updateUsage('notesGenerated'); // Increment usage count on successful generation
+      incrementUsage('notes'); // Increment usage count on successful generation
       awardXP(30);
   } else {
       saveNotesPdfBtn.style.display = 'none'; // Hide if no notes
@@ -1351,9 +1421,11 @@ function saveNotesAsPdf() {
 async function solvePastQuestion() {
   const solutionBox = document.getElementById('past-question-solution-box');
   
-  // Check daily usage limit
-  if (!checkUsage('imageSolutions', PLAN_LIMITS[getUserPlan()].imageSolutions, 'image solutions', solutionBox)) {
-      return;
+  // Check usage limit for free plan
+  const limitCheck = checkUsageLimit('imageSolutions');
+  if (!limitCheck.allowed) {
+    showUpgradePromptForLimit('imageSolutions');
+    return;
   }
 
   const subject = document.getElementById('subject').value;
@@ -1411,7 +1483,7 @@ async function solvePastQuestion() {
     
   if (solutionContent) {
       solutionBox.innerHTML = `<strong>Solution for WAEC Past Question:</strong><br>${solutionContent}`;
-      updateUsage('imageSolutions'); 
+      incrementUsage('imageSolutions'); 
         console.log('Solution received successfully');
         awardXP(40);
     } else {
@@ -1429,16 +1501,12 @@ async function generateQuiz(isNextQuiz = false) {
   const quizBox = document.getElementById('quiz-box');
   const quizControlButtons = document.getElementById('quizControlButtons');
 
-
-  if (isNextQuiz) {
-      if (!checkUsage('nextQuiz', DAILY_LIMITS.nextQuiz, '"Next Quiz" clicks', quizBox)) {
-          quizControlButtons.style.display = 'none'; // Hide controls if limit reached
-          return;
-      }
-  } else if (!checkUsage('refreshQuiz', DAILY_LIMITS.refreshQuiz, '"Daily Quiz" generations', quizBox)) {
-      
-      quizControlButtons.style.display = 'none';
-      return;
+  // Check usage limit for free plan
+  const limitCheck = checkUsageLimit('quizzes');
+  if (!limitCheck.allowed) {
+    showUpgradePromptForLimit('quizzes');
+    quizControlButtons.style.display = 'none';
+    return;
   }
 
   const subject = document.getElementById('subject').value;
@@ -1477,11 +1545,7 @@ async function generateQuiz(isNextQuiz = false) {
       }
       renderQuiz(currentQuiz);
       quizControlButtons.style.display = 'flex'; // Show controls once quiz is rendered
-      if (isNextQuiz) {
-          updateUsage('nextQuiz');
-      } else {
-          updateUsage('refreshQuiz');
-      }
+      incrementUsage('quizzes');
   } else {
       quizControlButtons.style.display = 'none'; // Hide if API call fails
   }
@@ -3712,6 +3776,125 @@ function resolveExamIcon(img) {
       img.src = 'icons/nsmq.png';
     }
   } catch {}
+
+}
+
+// ===== USAGE TRACKING & LIMITS =====
+const FREE_PLAN_LIMITS = {
+  aiResponses: 5,
+  notes: 3,
+  imageSolutions: 2,
+  quizzes: 2,
+  flashcards: 3
+};
+
+function getTodayKey() {
+  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+function getDailyUsage() {
+  const today = getTodayKey();
+  const stored = localStorage.getItem('dailyUsage');
+  let usage = {};
+  
+  try {
+    usage = JSON.parse(stored) || {};
+  } catch {}
+  
+  // Reset if it's a new day
+  if (!usage.date || usage.date !== today) {
+    usage = {
+      date: today,
+      aiResponses: 0,
+      notes: 0,
+      imageSolutions: 0,
+      quizzes: 0,
+      flashcards: 0
+    };
+    localStorage.setItem('dailyUsage', JSON.stringify(usage));
+  }
+  
+  return usage;
+}
+
+function incrementUsage(type) {
+  const usage = getDailyUsage();
+  usage[type] = (usage[type] || 0) + 1;
+  localStorage.setItem('dailyUsage', JSON.stringify(usage));
+  
+  // Update the usage display if it exists
+  updateUsageDisplay();
+  
+  return usage[type];
+}
+
+function checkUsageLimit(type) {
+  const profile = getStoredProfile() || {};
+  const plan = profile.plan || 'free';
+  
+  // Paid plans have no limits
+  if (plan !== 'free') return { allowed: true };
+  
+  const usage = getDailyUsage();
+  const current = usage[type] || 0;
+  const limit = FREE_PLAN_LIMITS[type] || 0;
+  
+  return {
+    allowed: current < limit,
+    current: current,
+    limit: limit,
+    remaining: Math.max(0, limit - current)
+  };
+}
+
+function showUpgradePromptForLimit(type) {
+  const limit = FREE_PLAN_LIMITS[type] || 0;
+  const typeNames = {
+    aiResponses: 'AI responses',
+    notes: 'notes generations',
+    imageSolutions: 'image solutions',
+    quizzes: 'quizzes',
+    flashcards: 'flashcards'
+  };
+  
+  const typeName = typeNames[type] || type;
+  showToast(`Daily limit reached! Free plan: ${limit} ${typeName}/day. Upgrade for unlimited access!`, { type: 'warning', duration: 4000 });
+  
+  // Auto-open upgrade modal after a short delay
+  setTimeout(() => {
+    showUpgradePrompt();
+  }, 1500);
+}
+
+function checkPremiumFeature(feature) {
+  const profile = getStoredProfile() || {};
+  const plan = profile.plan || 'free';
+  
+  if (plan === 'free') {
+    const featureNames = {
+      voice: 'Voice Input',
+      speech: 'Text-to-Speech',
+      pdf: 'PDF Export'
+    };
+    
+    const featureName = featureNames[feature] || feature;
+    const featureType = feature === 'pdf' ? 'advanced features' : 'voice features';
+    showToast(`${featureName} is a premium feature! Upgrade to unlock ${featureType}.`, { type: 'warning', duration: 3000 });
+    
+    setTimeout(() => {
+      showUpgradePrompt();
+    }, 1500);
+    return;
+  }
+  
+  // If user has paid plan, call the original function
+  if (feature === 'voice') {
+    startVoiceInput();
+  } else if (feature === 'speech') {
+    speakAnswer();
+  } else if (feature === 'pdf') {
+    saveNotesAsPdf();
+  }
 }
 
 // Ensure global access for inline handlers and external calls
@@ -3725,6 +3908,10 @@ try {
   window.logoutToSignup = window.logoutToSignup || logoutToSignup;
   window.showToast = window.showToast || showToast;
   window.resolveExamIcon = window.resolveExamIcon || resolveExamIcon;
+  window.checkUsageLimit = window.checkUsageLimit || checkUsageLimit;
+  window.incrementUsage = window.incrementUsage || incrementUsage;
+  window.showUpgradePromptForLimit = window.showUpgradePromptForLimit || showUpgradePromptForLimit;
+  window.checkPremiumFeature = window.checkPremiumFeature || checkPremiumFeature;
 } catch {}
 
 async function saveSettingsAvatar() {
