@@ -3631,7 +3631,7 @@ function renderSettingsProfile() {
 
   // Lightweight guards with logs (inline handlers already set)
   console.log('[Settings] buttons wired via inline handlers');
-}
+}k
 
 // ===== Toast Notifications =====
 function showToast(message, opts = {}) {
