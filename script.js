@@ -163,9 +163,21 @@ function resetAllDailyUsage() {
 
 
 function updateUsage(feature) {
-    const user = auth.currentUser;
-    if (user) {
-        
+    try {
+        // Ensure usage object is initialized and date is current
+        if (!dailyUsage || !dailyUsage.lastResetDate || dailyUsage.lastResetDate !== getTodayDateString()) {
+            initializeDailyUsage();
+        }
+
+        if (typeof dailyUsage[feature] !== 'number') {
+            dailyUsage[feature] = 0;
+        }
+
+        dailyUsage[feature] += 1;
+        localStorage.setItem('tutorbotDailyUsage', JSON.stringify(dailyUsage));
+        console.log('Daily usage updated:', feature, dailyUsage[feature]);
+    } catch (e) {
+        console.warn('Failed to update usage for feature', feature, e);
     }
 }
 
