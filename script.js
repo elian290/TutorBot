@@ -398,14 +398,14 @@ function enterGuestMode() {
       screen.__guestGuardInstalled = true;
     }
 
-    // Go to chatbot
-    goToScreen('chatbotScreen');
+    // Go to course selection first, then chatbot
+    goToScreen('courseScreen');
 
     // Notify
-    if (typeof showToast === 'function') showToast('Guest mode: only Ask TutorBot is available.');
+    if (typeof showToast === 'function') showToast('Guest mode: Select your course to continue.');
   } catch (e) {
     console.error('Failed to enter guest mode:', e);
-    goToScreen('chatbotScreen');
+    goToScreen('courseScreen');
   }
 }
 
@@ -1087,6 +1087,20 @@ async function startTutorBot() {
     subjects = ['Literature', 'History', 'Geography', 'Government', 'Economics', 'Christian Religious Studies', 'Islamic Studies', 'French', 'Core Maths', 'Integrated Science', 'English Language', 'Social Studies'];
   }
   subjectSelect.innerHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
+  
+  // Check if user is in guest mode
+  const isGuestMode = localStorage.getItem('guestMode') === '1';
+  
+  if (isGuestMode) {
+    // For guest users, store course selection locally and go directly to chatbot
+    console.log('Guest mode: storing course selection and going to chatbot');
+    localStorage.setItem('tutorbotCourse', course);
+    goToScreen('chatbotScreen');
+    if (typeof showToast === 'function') {
+      showToast('Guest mode: Course selected. Only Ask TutorBot is available.');
+    }
+    return;
+  }
   
   // Check if user has complete profile on backend
   try {
