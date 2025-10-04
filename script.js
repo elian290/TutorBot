@@ -182,6 +182,9 @@ function updateUsage(feature) {
         dailyUsage[feature] += 1;
         localStorage.setItem('tutorbotDailyUsage', JSON.stringify(dailyUsage));
         console.log('Daily usage updated:', feature, dailyUsage[feature]);
+        
+        // Sync usage to backend
+        syncUsageToBackend();
     } catch (e) {
         console.warn('Failed to update usage for feature', feature, e);
     }
@@ -956,6 +959,11 @@ async function loginUser() {
           }
           
           renderProfileHeader(userProfile);
+          
+          // Load plan and usage data from backend
+          await loadPlanFromBackend();
+          await loadUsageFromBackend();
+          
           goToScreen('chatbotScreen');
           await loadUserData();
           return;
@@ -2213,13 +2221,7 @@ function cancelCamera() {
 }
 
 // New function to proceed with solution after image capture
-function proceedWithSolution() {
-  if (selectedImageFile) {
-    solvePastQuestion();
-  } else {
-    alert('No image captured. Please capture an image first.');
-  }
-}
+
 
 async function handleFileUpload(event) {
   const solutionBox = document.getElementById('past-question-solution-box');
@@ -2659,6 +2661,9 @@ function grantPlanAccess(planType) {
         localStorage.setItem('tutorbotPlusPaidDate', Date.now().toString());
     }
     
+    // Sync plan to backend
+    syncPlanToBackend(planType);
+    
     closeUpgradeModal();
     
     const planNames = {
@@ -2772,9 +2777,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (window.auth) {
     auth.onAuthStateChanged((user) => {
       if (user) {
-        console.log('🔐 User authenticated, loading achievements...');
+        console.log('🔐 User authenticated, loading user data...');
         // Clear guest mode when user is authenticated
         localStorage.removeItem('guestMode');
+        
+        // Load plan and usage data from backend
+        loadPlanFromBackend();
+        loadUsageFromBackend();
+        
         // Clean up legacy unscoped keys (one-time migration)
         try { localStorage.removeItem('userAchievements'); } catch {}
         try { localStorage.removeItem('achievementStats'); } catch {}
@@ -2869,6 +2879,134 @@ function resetDailyLimits() {
     localStorage.removeItem('tutorbotDailyUsage');
     initializeDailyUsage();
     console.log('Daily limits reset!');
+}
+
+// ===== BACKEND SYNC FUNCTIONS =====
+
+// Sync plan information to backend
+async function syncPlanToBackend(planType) {
+    try {
+        const token = await getAuthToken();
+        if (!token) return;
+        
+        const response = await fetch(`${BACKEND_URL}/api/user/plan`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                plan: planType,
+                paidDate: Date.now(),
+                timestamp: new Date().toISOString()
+            })
+        });
+        
+        if (response.ok) {
+            console.log('Plan synced to backend successfully');
+        }
+    } catch (error) {
+        console.log('Failed to sync plan to backend:', error);
+    }
+}
+
+// Load plan information from backend
+async function loadPlanFromBackend() {
+    try {
+        const token = await getAuthToken();
+        if (!token) return null;
+        
+        const response = await fetch(`${BACKEND_URL}/api/user/plan`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.plan && data.paidDate) {
+                // Update local storage with backend data
+                localStorage.setItem('tutorbotPlan', data.plan);
+                localStorage.setItem('tutorbotPaidDate', data.paidDate.toString());
+                
+                // For backward compatibility
+                if (data.plan === 'premium') {
+                    localStorage.setItem('tutorbotPlus', 'true');
+                    localStorage.setItem('tutorbotPlusPaidDate', data.paidDate.toString());
+                }
+                
+                console.log('Plan loaded from backend:', data.plan);
+                return data.plan;
+            }
+        }
+    } catch (error) {
+        console.log('Failed to load plan from backend:', error);
+    }
+    return null;
+}
+
+// Sync daily usage to backend
+async function syncUsageToBackend() {
+    try {
+        const token = await getAuthToken();
+        if (!token) return;
+        
+        const response = await fetch(`${BACKEND_URL}/api/user/usage`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                usage: dailyUsage,
+                timestamp: new Date().toISOString()
+            })
+        });
+        
+        if (response.ok) {
+            console.log('Usage synced to backend successfully');
+        }
+    } catch (error) {
+        console.log('Failed to sync usage to backend:', error);
+    }
+}
+
+// Load daily usage from backend
+async function loadUsageFromBackend() {
+    try {
+        const token = await getAuthToken();
+        if (!token) return null;
+        
+        const response = await fetch(`${BACKEND_URL}/api/user/usage`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.usage) {
+                // Check if the usage data is from today
+                const todayDate = getTodayDateString();
+                if (data.usage.lastResetDate === todayDate) {
+                    // Update local usage with backend data
+                    dailyUsage = data.usage;
+                    localStorage.setItem('tutorbotDailyUsage', JSON.stringify(dailyUsage));
+                    console.log('Usage loaded from backend:', dailyUsage);
+                    return data.usage;
+                } else {
+                    // Backend data is from a different day, reset usage
+                    resetAllDailyUsage();
+                    syncUsageToBackend(); // Sync the reset usage
+                }
+            }
+        }
+    } catch (error) {
+        console.log('Failed to load usage from backend:', error);
+    }
+    return null;
 }
 
 // Test function for the new pricing system
