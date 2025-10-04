@@ -398,19 +398,20 @@ function enterGuestMode() {
       screen.__guestGuardInstalled = true;
     }
 
-    // Go to course selection first
-    goToScreen('courseScreen');
+    // Go to chatbot
+    goToScreen('chatbotScreen');
 
     // Notify
-    if (typeof showToast === 'function') showToast('Guest mode: select your course to begin. Only Ask TutorBot is available.');
+    if (typeof showToast === 'function') showToast('Guest mode: only Ask TutorBot is available.');
   } catch (e) {
     console.error('Failed to enter guest mode:', e);
-    goToScreen('courseScreen');
+    goToScreen('chatbotScreen');
   }
 }
 
 // Expose for inline use
 try { window.enterGuestMode = window.enterGuestMode || enterGuestMode; } catch {}
+// ---- Profile Setup & Header ----
 function getStoredProfile() {
   const raw = localStorage.getItem(getUserScopedKey(PROFILE_KEY));
   if (!raw) return null;
@@ -4037,26 +4038,6 @@ function openHelp() {
         <div class="faq-item">
           <h4>How do I report an issue or give feedback?</h4>
           <p>Use the Feedback/Support option (if available) or contact us via the website. Include details and screenshots to help us investigate.</p>
-        </div>
-        <div class="faq-item">
-          <h4>Why is my email verification required?</h4>
-          <p>Email verification protects your account and helps us keep your data safe. If you didn’t receive a code, check spam or request another.</p>
-        </div>
-      </div>
-    </div>
-  `;
-}
-          <h4>How do I report an issue or give feedback?</h4>
-          <p>Use the Feedback/Support option (if available) or contact us via the website. Include details and screenshots to help us investigate.</p>
-        </div>
-        <div class="faq-item">
-          <h4>Why is my email verification required?</h4>
-          <p>Email verification protects your account and helps us keep your data safe. If you didn’t receive a code, check spam or request another.</p>
-        </div>
-      </div>
-    </div>
-  `;
-}
         </div>
         <div class="faq-item">
           <h4>Why is my email verification required?</h4>
