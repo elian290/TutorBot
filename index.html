@@ -621,10 +621,21 @@
         <!-- Temporary Sync Button -->
         <div style="margin: 20px 0; padding: 15px; background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 10px;">
             <h4 style="color: #10b981; margin: 0 0 10px 0;">🔄 Cross-Device Sync</h4>
-            <p style="font-size: 0.9rem; color: #cbd5e1; margin: 0 0 10px 0;">If you bought a plan on this device, click below to sync it to all your devices:</p>
-            <button onclick="manualSyncPlanToBackend()" style="background: #10b981; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; width: 100%;">
-                📱 Sync My Plan to All Devices
-            </button>
+            <p style="font-size: 0.9rem; color: #cbd5e1; margin: 0 0 10px 0;">Sync your plan across all devices:</p>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button onclick="manualSyncPlanToBackend()" style="background: #10b981; color: white; padding: 12px 16px; border: none; border-radius: 8px; font-weight: bold; flex: 1; min-width: 140px;">
+                    📱 Sync Current Plan
+                </button>
+                <button onclick="restoreBasicPlan()" style="background: #3b82f6; color: white; padding: 12px 16px; border: none; border-radius: 8px; font-weight: bold; flex: 1; min-width: 140px;">
+                    🔧 Restore Basic Plan
+                </button>
+            </div>
+            
+            <p style="font-size: 0.8rem; color: #94a3b8; margin: 10px 0 0 0;">
+                • Use "Sync Current Plan" if you have a paid plan<br>
+                • Use "Restore Basic Plan" if your plan got reset to free
+            </p>
         </div>
 
         <div>

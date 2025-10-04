@@ -3035,6 +3035,37 @@ async function manualSyncPlanToBackend() {
     }
 }
 
+// Emergency function to restore Basic plan
+async function restoreBasicPlan() {
+    try {
+        console.log('Restoring Basic plan...');
+        
+        // Set Basic plan with current timestamp
+        const paidDate = Date.now();
+        localStorage.setItem('tutorbotPlan', 'basic');
+        localStorage.setItem('tutorbotPaidDate', paidDate.toString());
+        
+        // Sync to backend
+        await syncPlanToBackend('basic');
+        console.log('✅ Basic plan restored and synced!');
+        
+        // Also sync current usage
+        await syncUsageToBackend();
+        console.log('✅ Usage synced successfully!');
+        
+        alert('✅ Your Basic plan has been restored and synced to all devices! Please refresh the page to see the changes.');
+        
+        // Refresh the page to show updated plan
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Failed to restore Basic plan:', error);
+        alert('❌ Failed to restore Basic plan. Please try again.');
+    }
+}
+
 // Test function for the new pricing system
 function testPricingSystem() {
     console.log('=== Testing Pricing System ===');
