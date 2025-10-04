@@ -398,20 +398,19 @@ function enterGuestMode() {
       screen.__guestGuardInstalled = true;
     }
 
-    // Go to chatbot
-    goToScreen('chatbotScreen');
+    // Go to course selection first
+    goToScreen('courseScreen');
 
     // Notify
-    if (typeof showToast === 'function') showToast('Guest mode: only Ask TutorBot is available.');
+    if (typeof showToast === 'function') showToast('Guest mode: select your course to begin. Only Ask TutorBot is available.');
   } catch (e) {
     console.error('Failed to enter guest mode:', e);
-    goToScreen('chatbotScreen');
+    goToScreen('courseScreen');
   }
 }
 
 // Expose for inline use
 try { window.enterGuestMode = window.enterGuestMode || enterGuestMode; } catch {}
-// ---- Profile Setup & Header ----
 function getStoredProfile() {
   const raw = localStorage.getItem(getUserScopedKey(PROFILE_KEY));
   if (!raw) return null;
@@ -1088,6 +1087,17 @@ async function startTutorBot() {
   }
   subjectSelect.innerHTML = subjects.map(sub => `<option value="${sub}">${sub}</option>`).join('');
   
+  // If in guest mode, skip profile setup and go straight to chatbot
+  try {
+    if (localStorage.getItem('guestMode') === '1') {
+      const header = document.getElementById('profileHeader');
+      if (header) header.style.display = 'none';
+      goToScreen('chatbotScreen');
+      if (typeof showToast === 'function') showToast('Guest mode: you can now ask TutorBot.');
+      return;
+    }
+  } catch {}
+  
   // Check if user has complete profile on backend
   try {
     const userProfile = await loadUserProfile();
@@ -1156,12 +1166,16 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
     }, timeoutMs);
 
     try {
-        const user = auth.currentUser;
-        if (!user) {
-            outputElement.innerText = "You must be signed in to use TutorBot features.";
-            return null;
+        const isGuest = (function(){ try { return localStorage.getItem('guestMode') === '1'; } catch { return false; } })();
+        let idToken = null;
+        if (!isGuest) {
+            const user = auth.currentUser;
+            if (!user) {
+                outputElement.innerText = "You must be signed in to use TutorBot features.";
+                return null;
+            }
+            idToken = await user.getIdToken();
         }
-        const idToken = await user.getIdToken();
        
         console.log('Current hostname:', window.location.hostname);
         const API_BASE = BACKEND_URL;
@@ -1170,10 +1184,15 @@ async function callGeminiAPI(promptParts, outputElement, loadingMessage) {
 
         const response = await fetch(`${API_BASE}/api/ai/gemini`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + idToken
-            },
+            headers: (function(){
+                const h = { 'Content-Type': 'application/json' };
+                if (isGuest) {
+                    h['X-Guest-Mode'] = '1';
+                } else if (idToken) {
+                    h['Authorization'] = 'Bearer ' + idToken;
+                }
+                return h;
+            })(),
             body: JSON.stringify({ promptParts }),
             signal: signal
         });
