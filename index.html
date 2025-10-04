@@ -620,21 +620,26 @@
 
         <!-- Temporary Sync Button -->
         <div style="margin: 20px 0; padding: 15px; background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 10px;">
-            <h4 style="color: #10b981; margin: 0 0 10px 0;">🔄 Cross-Device Sync</h4>
-            <p style="font-size: 0.9rem; color: #cbd5e1; margin: 0 0 10px 0;">Sync your plan across all devices:</p>
+            <h4 style="color: #10b981; margin: 0 0 10px 0;">🔄 Plan Management</h4>
+            <p style="font-size: 0.9rem; color: #cbd5e1; margin: 0 0 10px 0;">Manage your plan across devices:</p>
             
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button onclick="manualSyncPlanToBackend()" style="background: #10b981; color: white; padding: 12px 16px; border: none; border-radius: 8px; font-weight: bold; flex: 1; min-width: 140px;">
-                    📱 Sync Current Plan
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px;">
+                <button onclick="manualSyncPlanToBackend()" style="background: #10b981; color: white; padding: 10px 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 0.85rem;">
+                    📱 Sync Plan
                 </button>
-                <button onclick="restoreBasicPlan()" style="background: #3b82f6; color: white; padding: 12px 16px; border: none; border-radius: 8px; font-weight: bold; flex: 1; min-width: 140px;">
-                    🔧 Restore Basic Plan
+                <button onclick="restoreBasicPlan()" style="background: #3b82f6; color: white; padding: 10px 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 0.85rem;">
+                    🔧 Restore Basic
+                </button>
+                <button onclick="resetToFreePlan()" style="background: #ef4444; color: white; padding: 10px 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 0.85rem;">
+                    🆓 Reset to Free
+                </button>
+                <button onclick="debugPlanInfo()" style="background: #8b5cf6; color: white; padding: 10px 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 0.85rem;">
+                    🐛 Debug Info
                 </button>
             </div>
             
-            <p style="font-size: 0.8rem; color: #94a3b8; margin: 10px 0 0 0;">
-                • Use "Sync Current Plan" if you have a paid plan<br>
-                • Use "Restore Basic Plan" if your plan got reset to free
+            <p style="font-size: 0.75rem; color: #94a3b8; margin: 0;">
+                <strong>For new accounts showing wrong plan:</strong> Click "Reset to Free" first, then refresh the page.
             </p>
         </div>
 

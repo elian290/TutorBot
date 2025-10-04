@@ -3066,6 +3066,64 @@ async function restoreBasicPlan() {
     }
 }
 
+// Function to clear all plan data and reset to free
+async function resetToFreePlan() {
+    try {
+        console.log('Resetting to free plan...');
+        
+        // Clear local storage
+        localStorage.removeItem('tutorbotPlan');
+        localStorage.removeItem('tutorbotPaidDate');
+        localStorage.removeItem('tutorbotPlus');
+        localStorage.removeItem('tutorbotPlusPaidDate');
+        
+        // Set to free plan
+        localStorage.setItem('tutorbotPlan', 'free');
+        
+        // Sync free plan to backend
+        await syncPlanToBackend('free');
+        console.log('✅ Reset to free plan and synced!');
+        
+        alert('✅ Account has been reset to free plan and synced! Please refresh the page.');
+        
+        // Refresh the page
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Failed to reset to free plan:', error);
+        alert('❌ Failed to reset plan. Please try again.');
+    }
+}
+
+// Debug function to check current user and plan
+async function debugPlanInfo() {
+    try {
+        const user = auth.currentUser;
+        const currentPlan = getUserPlan();
+        const localPlan = localStorage.getItem('tutorbotPlan');
+        const localPaidDate = localStorage.getItem('tutorbotPaidDate');
+        
+        console.log('=== DEBUG PLAN INFO ===');
+        console.log('Current User:', user ? user.uid : 'Not logged in');
+        console.log('Current User Email:', user ? user.email : 'Not logged in');
+        console.log('getUserPlan() result:', currentPlan);
+        console.log('localStorage tutorbotPlan:', localPlan);
+        console.log('localStorage tutorbotPaidDate:', localPaidDate);
+        
+        // Try to load from backend
+        const backendPlan = await loadPlanFromBackend();
+        console.log('Backend plan:', backendPlan);
+        
+        alert(`Debug Info:\nUser: ${user ? user.email : 'Not logged in'}\nLocal Plan: ${localPlan}\nCurrent Plan: ${currentPlan}\nBackend Plan: ${backendPlan || 'None'}`);
+        
+    } catch (error) {
+        console.error('Debug error:', error);
+        alert('Debug error: ' + error.message);
+    }
+}
+
 // Test function for the new pricing system
 function testPricingSystem() {
     console.log('=== Testing Pricing System ===');
