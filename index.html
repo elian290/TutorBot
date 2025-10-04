@@ -609,7 +609,6 @@
                 
                 <!-- Image Controls (after capture) -->
                 <div class="camera-buttons" id="imageControls" style="display:none;">
-                    <button onclick="proceedWithSolution()" class="capture-btn">✅ Get Solution</button>
                     <button onclick="openCamera()" class="cancel-btn">🔄 Retake</button>
                     <button onclick="clearImage()" class="cancel-btn">🗑️ Clear</button>
                 </div>
@@ -617,6 +616,15 @@
 
             <button id="solvePastQuestionBtn" onclick="solvePastQuestion()">🧠 Get Solution (from Image/PDF)</button>
             <div class="past-question-solver-box" id="past-question-solution-box" style="display:none;"></div>
+        </div>
+
+        <!-- Temporary Sync Button -->
+        <div style="margin: 20px 0; padding: 15px; background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 10px;">
+            <h4 style="color: #10b981; margin: 0 0 10px 0;">🔄 Cross-Device Sync</h4>
+            <p style="font-size: 0.9rem; color: #cbd5e1; margin: 0 0 10px 0;">If you bought a plan on this device, click below to sync it to all your devices:</p>
+            <button onclick="manualSyncPlanToBackend()" style="background: #10b981; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; width: 100%;">
+                📱 Sync My Plan to All Devices
+            </button>
         </div>
 
         <div>
