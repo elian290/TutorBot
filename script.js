@@ -1757,7 +1757,7 @@ function renderSettingsProfile() {
 
   // Lightweight guards with logs (inline handlers already set)
   console.log('[Settings] buttons wired via inline handlers');
-}k
+}
 
 // ===== Toast Notifications =====
 function showToast(message, opts = {}) {
@@ -1842,32 +1842,32 @@ function resolveExamIcon(img) {
 
 // Ensure global access for inline handlers and external calls
 try {
-  window.openSettings = window.openSettings || openSettings;
-  window.renderSettingsProfile = window.renderSettingsProfile || renderSettingsProfile;
-  window.openAvatarPalette = window.openAvatarPalette || openAvatarPalette;
-  window.onSettingsAvatarFileSelected = window.onSettingsAvatarFileSelected || onSettingsAvatarFileSelected;
-  window.openAvatarCameraDialog = window.openAvatarCameraDialog || openAvatarCameraDialog;
-  window.saveSettingsAvatar = window.saveSettingsAvatar || saveSettingsAvatar;
-  window.logoutToSignup = window.logoutToSignup || logoutToSignup;
-  window.showToast = window.showToast || showToast;
-  window.resolveExamIcon = window.resolveExamIcon || resolveExamIcon;
+  if (typeof openSettings === 'function') window.openSettings = window.openSettings || openSettings;
+  if (typeof renderSettingsProfile === 'function') window.renderSettingsProfile = window.renderSettingsProfile || renderSettingsProfile;
+  if (typeof openAvatarPalette === 'function') window.openAvatarPalette = window.openAvatarPalette || openAvatarPalette;
+  if (typeof onSettingsAvatarFileSelected === 'function') window.onSettingsAvatarFileSelected = window.onSettingsAvatarFileSelected || onSettingsAvatarFileSelected;
+  if (typeof openAvatarCameraDialog === 'function') window.openAvatarCameraDialog = window.openAvatarCameraDialog || openAvatarCameraDialog;
+  if (typeof saveSettingsAvatar === 'function') window.saveSettingsAvatar = window.saveSettingsAvatar || saveSettingsAvatar;
+  if (typeof logoutToSignup === 'function') window.logoutToSignup = window.logoutToSignup || logoutToSignup;
+  if (typeof showToast === 'function') window.showToast = window.showToast || showToast;
+  if (typeof resolveExamIcon === 'function') window.resolveExamIcon = window.resolveExamIcon || resolveExamIcon;
 
-  // Chatbot core actions
-  window.getResponse = window.getResponse || getResponse;
-  window.startVoiceInput = window.startVoiceInput || startVoiceInput;
-  window.speakAnswer = window.speakAnswer || speakAnswer;
-  window.pauseSpeech = window.pauseSpeech || pauseSpeech;
-  window.resumeSpeech = window.resumeSpeech || resumeSpeech;
-  window.stopProcess = window.stopProcess || stopProcess;
-  window.generateNotes = window.generateNotes || generateNotes;
-  window.solvePastQuestion = window.solvePastQuestion || solvePastQuestion;
-  window.generateQuiz = window.generateQuiz || generateQuiz;
-  window.generateFlashcards = window.generateFlashcards || generateFlashcards;
-  window.saveHistory = window.saveHistory || saveHistory;
-  window.loadSavedFlashcards = window.loadSavedFlashcards || loadSavedFlashcards;
-  window.navigateHistory = window.navigateHistory || navigateHistory;
-  window.navigateFlashcards = window.navigateFlashcards || navigateFlashcards;
-  window.startTutorBot = window.startTutorBot || startTutorBot;
+  // Chatbot core actions (guard each to avoid ReferenceErrors)
+  if (typeof getResponse === 'function') window.getResponse = window.getResponse || getResponse;
+  if (typeof startVoiceInput === 'function') window.startVoiceInput = window.startVoiceInput || startVoiceInput;
+  if (typeof speakAnswer === 'function') window.speakAnswer = window.speakAnswer || speakAnswer;
+  if (typeof pauseSpeech === 'function') window.pauseSpeech = window.pauseSpeech || pauseSpeech;
+  if (typeof resumeSpeech === 'function') window.resumeSpeech = window.resumeSpeech || resumeSpeech;
+  if (typeof stopProcess === 'function') window.stopProcess = window.stopProcess || stopProcess;
+  if (typeof generateNotes === 'function') window.generateNotes = window.generateNotes || generateNotes;
+  if (typeof solvePastQuestion === 'function') window.solvePastQuestion = window.solvePastQuestion || solvePastQuestion;
+  if (typeof generateQuiz === 'function') window.generateQuiz = window.generateQuiz || generateQuiz;
+  if (typeof generateFlashcards === 'function') window.generateFlashcards = window.generateFlashcards || generateFlashcards;
+  if (typeof saveHistory === 'function') window.saveHistory = window.saveHistory || saveHistory;
+  if (typeof loadSavedFlashcards === 'function') window.loadSavedFlashcards = window.loadSavedFlashcards || loadSavedFlashcards;
+  if (typeof navigateHistory === 'function') window.navigateHistory = window.navigateHistory || navigateHistory;
+  if (typeof navigateFlashcards === 'function') window.navigateFlashcards = window.navigateFlashcards || navigateFlashcards;
+  if (typeof startTutorBot === 'function') window.startTutorBot = window.startTutorBot || startTutorBot;
 } catch {}
 
 async function saveSettingsAvatar() {
