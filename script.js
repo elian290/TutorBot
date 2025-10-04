@@ -370,39 +370,39 @@ function enterGuestMode() {
   try {
     localStorage.setItem('guestMode', '1');
 
-    // Hide profile header and upgrade
+    // Keep profile header hidden (no username/xp shown)
     const ph = document.getElementById('profileHeader');
     if (ph) ph.style.display = 'none';
-    const upg = document.getElementById('upgradeButton');
-    if (upg) upg.style.display = 'none';
 
-    // Hide feature nav (achievements, leaderboard, games, friends, settings, help)
-    const nav = document.getElementById('featureNav');
-    if (nav) nav.style.display = 'none';
-
-    // Hide Advanced Tools section (notes, image solver, quiz, flashcards)
-    document.querySelectorAll('.advanced-tools-section').forEach(el => el.style.display = 'none');
-
-    // Hide saved answers/flashcards controls
-    ['saveHistoryBtn','historyNavButtons','history-box','loadFlashcardsBtn','flashcardNavButtons','flashcard-history-box']
-      .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-
-    // Hide exam shortcuts
-    const exams = document.getElementById('examShortcuts');
-    if (exams) exams.style.display = 'none';
-
-    // Minimal subject list
-    const subjectSelect = document.getElementById('subject');
-    const subjects = ['Core Maths','Integrated Science','English Language','Social Studies'];
-    if (subjectSelect) {
-      subjectSelect.innerHTML = subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    // Install click guard: only allow Ask TutorBot for guests
+    const screen = document.getElementById('chatbotScreen');
+    if (screen && !screen.__guestGuardInstalled) {
+      screen.addEventListener('click', function(e) {
+        try {
+          const clickable = e.target.closest('button, .feature-icon, .exam-tile');
+          if (!clickable) return;
+          const allowedIds = new Set(['askTutorBotBtn']);
+          const id = clickable.id || '';
+          if (!allowedIds.has(id)) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            if (typeof showToast === 'function') {
+              showToast('Sign up to access more features.');
+            } else {
+              alert('Sign up to access more features.');
+            }
+          }
+        } catch (_) {}
+      }, true);
+      screen.__guestGuardInstalled = true;
     }
 
     // Go to chatbot
     goToScreen('chatbotScreen');
 
     // Notify
-    if (typeof showToast === 'function') showToast('Guest mode: some features are disabled.');
+    if (typeof showToast === 'function') showToast('Guest mode: only Ask TutorBot is available.');
   } catch (e) {
     console.error('Failed to enter guest mode:', e);
     goToScreen('chatbotScreen');
