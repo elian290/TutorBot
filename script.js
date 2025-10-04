@@ -1851,23 +1851,6 @@ try {
   window.logoutToSignup = window.logoutToSignup || logoutToSignup;
   window.showToast = window.showToast || showToast;
   window.resolveExamIcon = window.resolveExamIcon || resolveExamIcon;
-
-  // Chatbot core actions
-  window.getResponse = window.getResponse || getResponse;
-  window.startVoiceInput = window.startVoiceInput || startVoiceInput;
-  window.speakAnswer = window.speakAnswer || speakAnswer;
-  window.pauseSpeech = window.pauseSpeech || pauseSpeech;
-  window.resumeSpeech = window.resumeSpeech || resumeSpeech;
-  window.stopProcess = window.stopProcess || stopProcess;
-  window.generateNotes = window.generateNotes || generateNotes;
-  window.solvePastQuestion = window.solvePastQuestion || solvePastQuestion;
-  window.generateQuiz = window.generateQuiz || generateQuiz;
-  window.generateFlashcards = window.generateFlashcards || generateFlashcards;
-  window.saveHistory = window.saveHistory || saveHistory;
-  window.loadSavedFlashcards = window.loadSavedFlashcards || loadSavedFlashcards;
-  window.navigateHistory = window.navigateHistory || navigateHistory;
-  window.navigateFlashcards = window.navigateFlashcards || navigateFlashcards;
-  window.startTutorBot = window.startTutorBot || startTutorBot;
 } catch {}
 
 async function saveSettingsAvatar() {
