@@ -673,6 +673,14 @@ function renderProfileHeader(profile) {
   const xpFill = document.getElementById('headerXpFill');
   const xpText = document.getElementById('headerXpText');
   if (!header) return;
+  
+  // Don't show profile header for guest users
+  const isGuestMode = localStorage.getItem('guestMode') === '1';
+  if (isGuestMode) {
+    header.style.display = 'none';
+    return;
+  }
+  
   header.style.display = 'flex';
   if (avatar) avatar.src = profile.avatar || '';
   if (name) name.textContent = profile.username;
@@ -701,6 +709,12 @@ function xpNeededForLevel(level) {
 }
 
 async function awardXP(amount) {
+  // Don't award XP to guest users
+  const isGuestMode = localStorage.getItem('guestMode') === '1';
+  if (isGuestMode) {
+    return;
+  }
+  
   let xp = getStoredXP();
   let level = getStoredLevel();
   xp += amount;
@@ -2974,6 +2988,12 @@ function showAchievementNotification(achievement) {
 }
 
 function updateAchievementStat(stat, increment = 1) {
+  // Don't update achievement stats for guest users
+  const isGuestMode = localStorage.getItem('guestMode') === '1';
+  if (isGuestMode) {
+    return;
+  }
+  
   achievementStats[stat] = (achievementStats[stat] || 0) + increment;
   saveStatsToStorage();
   
