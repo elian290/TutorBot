@@ -365,6 +365,52 @@ function goToScreen(id) {
     // Place any on-enter-chatbot logic here if needed
   }
 }
+// Guest mode: allow chatbot access without signup
+function enterGuestMode() {
+  try {
+    localStorage.setItem('guestMode', '1');
+
+    // Hide profile header and upgrade
+    const ph = document.getElementById('profileHeader');
+    if (ph) ph.style.display = 'none';
+    const upg = document.getElementById('upgradeButton');
+    if (upg) upg.style.display = 'none';
+
+    // Hide feature nav (achievements, leaderboard, games, friends, settings, help)
+    const nav = document.getElementById('featureNav');
+    if (nav) nav.style.display = 'none';
+
+    // Hide Advanced Tools section (notes, image solver, quiz, flashcards)
+    document.querySelectorAll('.advanced-tools-section').forEach(el => el.style.display = 'none');
+
+    // Hide saved answers/flashcards controls
+    ['saveHistoryBtn','historyNavButtons','history-box','loadFlashcardsBtn','flashcardNavButtons','flashcard-history-box']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+
+    // Hide exam shortcuts
+    const exams = document.getElementById('examShortcuts');
+    if (exams) exams.style.display = 'none';
+
+    // Minimal subject list
+    const subjectSelect = document.getElementById('subject');
+    const subjects = ['Core Maths','Integrated Science','English Language','Social Studies'];
+    if (subjectSelect) {
+      subjectSelect.innerHTML = subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+
+    // Go to chatbot
+    goToScreen('chatbotScreen');
+
+    // Notify
+    if (typeof showToast === 'function') showToast('Guest mode: some features are disabled.');
+  } catch (e) {
+    console.error('Failed to enter guest mode:', e);
+    goToScreen('chatbotScreen');
+  }
+}
+
+// Expose for inline use
+try { window.enterGuestMode = window.enterGuestMode || enterGuestMode; } catch {}
 // ---- Profile Setup & Header ----
 function getStoredProfile() {
   const raw = localStorage.getItem(getUserScopedKey(PROFILE_KEY));
