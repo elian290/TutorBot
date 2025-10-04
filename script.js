@@ -67,33 +67,37 @@ const BACKEND_URL = 'https://tutorbot-backend.onrender.com';
 
 // --- Daily Usage Limits (Free Plan) ---
 const DAILY_LIMITS = {
-    responses: 10,
-    readAnswers: 5,
-    notesGenerated: 5,
-    imageSolutions: 4,
+    responses: 5,
+    readAnswers: 0, // Read answers now requires basic plan or higher
+    notesGenerated: 3,
+    imageSolutions: 2,
     nextQuiz: 2, // For "Next Quiz" button
-    refreshQuiz: 3  // For "Refresh Quiz" button
+    refreshQuiz: 1,  // For "Refresh Quiz" button
+    flashcards: 2,
+    dailyQuizzes: 2
 };
 
 // --- Plan-specific Daily Limits ---
 const PLAN_LIMITS = {
     free: {
-        responses: 10,
-        readAnswers: 5,
-        notesGenerated: 5,
-        imageSolutions: 4,
+        responses: 5,
+        readAnswers: 0, // Read answers now requires basic plan or higher
+        notesGenerated: 3,
+        imageSolutions: 2,
         nextQuiz: 2,
-        refreshQuiz: 3,
-        flashcards: 3
+        refreshQuiz: 1,
+        flashcards: 2,
+        dailyQuizzes: 2 // Daily quiz limit for free users
     },
     basic: {
         responses: 25,
-        readAnswers: 15,
+        readAnswers: 15, // Read answers available from basic plan
         notesGenerated: 10,
         imageSolutions: 5,
         nextQuiz: 5,
         refreshQuiz: 3,
-        flashcards: 5
+        flashcards: 5,
+        dailyQuizzes: 10
     },
     standard: {
         responses: 75,
@@ -102,7 +106,8 @@ const PLAN_LIMITS = {
         imageSolutions: 15,
         nextQuiz: 15,
         refreshQuiz: 10,
-        flashcards: 15
+        flashcards: 15,
+        dailyQuizzes: 25
     },
     premium: {
         responses: 99999,
@@ -111,7 +116,8 @@ const PLAN_LIMITS = {
         imageSolutions: 99999,
         nextQuiz: 99999,
         refreshQuiz: 99999,
-        flashcards: 99999
+        flashcards: 99999,
+        dailyQuizzes: 99999
     }
 };
 
@@ -1280,8 +1286,17 @@ async function getResponse() {
 
   let promptText = `As a smart SHS AI Assistant for Ghanaian students specializing in ${subject}, explain the following concept or answer the question to a Senior High School student. Ensure the language is clear, concise, and aligned with WAEC standards, using relevant Ghanaian or West African examples where appropriate:\n\n"${question}".`;
 
+  // Check if simplify is checked and user has required plan
   if (document.getElementById('simplify').checked) {
-      promptText += ` After your detailed explanation, provide a simpler, more concise explanation for easier understanding, clearly labeled "Simplified Version:".`;
+      const userPlan = getUserPlan();
+      if (userPlan === 'standard' || userPlan === 'premium') {
+          promptText += ` After your detailed explanation, provide a simpler, more concise explanation for easier understanding, clearly labeled "Simplified Version:".`;
+      } else {
+          // Show upgrade message for free/basic users
+          responseBox.innerHTML = `<div class="limit-message-box">✨ Simplify Answer is a Standard/Premium feature. <a href="#" onclick="openModal('upgradeModal')" style="color: #2563eb; text-decoration: underline;">Upgrade your plan</a> to access this feature.</div>`;
+          responseBox.style.display = 'block';
+          return;
+      }
   }
 
   console.log('Calling Gemini API...');
@@ -1325,7 +1340,9 @@ async function generateFlashcards() {
   const promptParts = [{ text: promptText }];
   const flashcardContent = await callGeminiAPI(promptParts, flashcardBox, "Crafting your flashcard...");
   if (flashcardContent) {
-      flashcardBox.innerHTML = `<strong>Flashcard Generated:</strong><br>${flashcardContent}<br><br><button onclick="saveFlashcard()" class="continue-btn" style="margin-top: 10px;">💾 Save Flashcard</button>`;
+      // Remove asterisks from flashcard content
+      const cleanFlashcardContent = flashcardContent.replace(/\*/g, '');
+      flashcardBox.innerHTML = `<strong>Flashcard Generated:</strong><br>${cleanFlashcardContent}<br><br><button onclick="saveFlashcard()" class="continue-btn" style="margin-top: 10px;">💾 Save Flashcard</button>`;
       updateUsage('flashcards');
       awardXP(20);
       
@@ -1400,8 +1417,18 @@ async function generateNotes() {
   const promptParts = [{ text: promptText }];
   const notesContent = await callGeminiAPI(promptParts, notesBox, `Generating detailed notes on "${notesTopic}" for ${subject}...`);
   if (notesContent) {
-      notesBox.innerHTML = `<strong>Notes on "${notesTopic}" (${subject}):</strong><br>${notesContent}`;
-      saveNotesPdfBtn.style.display = 'block'; // Show PDF button if notes generated
+      // Remove asterisks from notes content
+      const cleanNotesContent = notesContent.replace(/\*/g, '');
+      notesBox.innerHTML = `<strong>Notes on "${notesTopic}" (${subject}):</strong><br>${cleanNotesContent}`;
+      
+      // Only show PDF button for Standard/Premium users
+      const userPlan = getUserPlan();
+      if (userPlan === 'standard' || userPlan === 'premium') {
+          saveNotesPdfBtn.style.display = 'block';
+      } else {
+          saveNotesPdfBtn.style.display = 'none';
+      }
+      
       updateUsage('notesGenerated'); // Increment usage count on successful generation
       awardXP(30);
   } else {
@@ -1412,6 +1439,15 @@ async function generateNotes() {
 
 function saveNotesAsPdf() {
   const notesBox = document.getElementById('notes-box');
+  
+  // Check if user has required plan for PDF export
+  const userPlan = getUserPlan();
+  if (userPlan === 'free' || userPlan === 'basic') {
+      notesBox.innerHTML = `<div class="limit-message-box">💾 Save Notes as PDF is a Standard/Premium feature. <a href="#" onclick="openModal('upgradeModal')" style="color: #2563eb; text-decoration: underline;">Upgrade your plan</a> to access this feature.</div>`;
+      notesBox.style.display = 'block';
+      return;
+  }
+  
   const notesTopic = document.getElementById('notesTopic').value.trim();
   const subject = document.getElementById('subject').value;
   const notesContent = notesBox.innerText;
@@ -1426,12 +1462,44 @@ function saveNotesAsPdf() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  doc.setFontSize(18);
-  doc.text(`Notes on ${notesTopic} (${subject})`, 10, 20);
-  doc.setFontSize(12);
+  // Set up page dimensions and margins
+  const pageHeight = doc.internal.pageSize.height;
+  const pageWidth = doc.internal.pageSize.width;
+  const margin = 10;
+  const lineHeight = 7;
+  const maxWidth = pageWidth - (margin * 2);
+  
+  let yPosition = 20;
 
-  const splitText = doc.splitTextToSize(notesContent, 180); 
-  doc.text(splitText, 10, 30);
+  // Add title
+  doc.setFontSize(18);
+  doc.text(`Notes on ${notesTopic} (${subject})`, margin, yPosition);
+  yPosition += 15;
+
+  // Add content with proper page breaks
+  doc.setFontSize(12);
+  
+  // Clean the content and split into paragraphs
+  const cleanContent = notesContent.replace(/^Notes on.*?\(.*?\):\s*/, '').trim();
+  const paragraphs = cleanContent.split('\n').filter(p => p.trim() !== '');
+  
+  paragraphs.forEach(paragraph => {
+    const lines = doc.splitTextToSize(paragraph.trim(), maxWidth);
+    
+    lines.forEach(line => {
+      // Check if we need a new page
+      if (yPosition + lineHeight > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+      }
+      
+      doc.text(line, margin, yPosition);
+      yPosition += lineHeight;
+    });
+    
+    // Add extra space between paragraphs
+    yPosition += 3;
+  });
 
   const filename = `${notesTopic}_Notes_${subject}.pdf`.replace(/[^a-zA-Z0-9_.-]/g, '_'); 
   doc.save(filename);
@@ -1500,7 +1568,9 @@ async function solvePastQuestion() {
   const solutionContent = await callGeminiAPI(promptParts, solutionBox, "Analyzing image and preparing detailed WAEC solution...");
     
   if (solutionContent) {
-      solutionBox.innerHTML = `<strong>Solution for WAEC Past Question:</strong><br>${solutionContent}`;
+      // Remove asterisks from solution content
+      const cleanSolutionContent = solutionContent.replace(/\*/g, '');
+      solutionBox.innerHTML = `<strong>Solution for WAEC Past Question:</strong><br>${cleanSolutionContent}`;
       updateUsage('imageSolutions'); 
         console.log('Solution received successfully');
         awardXP(40);
@@ -1579,7 +1649,9 @@ async function generateQuiz(isNextQuiz = false) {
 
 function parseQuizResponse(quizText) {
   const questions = [];
-  const rawQuestions = quizText.split(/Question \d+:\s*/).filter(Boolean).slice(1);
+  // Remove asterisks from quiz content before parsing
+  const cleanQuizText = quizText.replace(/\*/g, '');
+  const rawQuestions = cleanQuizText.split(/Question \d+:\s*/).filter(Boolean).slice(1);
 
   rawQuestions.forEach(rawQ => {
       const lines = rawQ.trim().split('\n').filter(line => line.trim() !== '');
@@ -1824,8 +1896,17 @@ function updateSpeechControlButtons() {
 function speakAnswer() {
     const responseBox = document.getElementById('response');
     
+    // Check if user has required plan for read answers
+    const userPlan = getUserPlan();
+    if (userPlan === 'free') {
+        responseBox.innerHTML = `<div class="limit-message-box">🔊 Read Answer is a Basic/Standard/Premium feature. <a href="#" onclick="openModal('upgradeModal')" style="color: #2563eb; text-decoration: underline;">Upgrade your plan</a> to access this feature.</div>`;
+        responseBox.style.display = 'block';
+        updateSpeechControlButtons();
+        return;
+    }
+    
     // Check daily usage limit
-    if (!checkUsage('readAnswers', DAILY_LIMITS.readAnswers, 'read answers', responseBox)) {
+    if (!checkUsage('readAnswers', PLAN_LIMITS[userPlan].readAnswers, 'read answers', responseBox)) {
         updateSpeechControlButtons();
         return;
     }
