@@ -890,6 +890,7 @@ async function verifyAndSignup() {
       auth.createUserWithEmailAndPassword(verificationEmail, password)
         .then(() => {
           localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
+          localStorage.removeItem('guestMode');
           goToScreen('courseScreen');
         })
         .catch(error => {
@@ -915,6 +916,9 @@ async function loginUser() {
     try {
       await auth.signInWithEmailAndPassword(email, password);
       localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
+      
+      // Clear guest mode when user signs in
+      localStorage.removeItem('guestMode');
       
       // Clear any previously cached profile for other users
       try {
@@ -2622,6 +2626,8 @@ document.addEventListener('DOMContentLoaded', () => {
     auth.onAuthStateChanged((user) => {
       if (user) {
         console.log('🔐 User authenticated, loading achievements...');
+        // Clear guest mode when user is authenticated
+        localStorage.removeItem('guestMode');
         // Clean up legacy unscoped keys (one-time migration)
         try { localStorage.removeItem('userAchievements'); } catch {}
         try { localStorage.removeItem('achievementStats'); } catch {}
