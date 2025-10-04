@@ -2889,7 +2889,7 @@ async function syncPlanToBackend(planType) {
         const token = await getAuthToken();
         if (!token) return;
         
-        const response = await fetch(`${BACKEND_URL}/api/user/plan`, {
+        const response = await fetch(`${BACKEND_URL}/api/userdata/plan`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -2916,7 +2916,7 @@ async function loadPlanFromBackend() {
         const token = await getAuthToken();
         if (!token) return null;
         
-        const response = await fetch(`${BACKEND_URL}/api/user/plan`, {
+        const response = await fetch(`${BACKEND_URL}/api/userdata/plan`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -2952,7 +2952,7 @@ async function syncUsageToBackend() {
         const token = await getAuthToken();
         if (!token) return;
         
-        const response = await fetch(`${BACKEND_URL}/api/user/usage`, {
+        const response = await fetch(`${BACKEND_URL}/api/userdata/usage`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -2978,7 +2978,7 @@ async function loadUsageFromBackend() {
         const token = await getAuthToken();
         if (!token) return null;
         
-        const response = await fetch(`${BACKEND_URL}/api/user/usage`, {
+        const response = await fetch(`${BACKEND_URL}/api/userdata/usage`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -3007,6 +3007,32 @@ async function loadUsageFromBackend() {
         console.log('Failed to load usage from backend:', error);
     }
     return null;
+}
+
+// Manual sync function to sync existing plan to backend
+async function manualSyncPlanToBackend() {
+    try {
+        const currentPlan = localStorage.getItem('tutorbotPlan');
+        const paidDate = localStorage.getItem('tutorbotPaidDate');
+        
+        if (currentPlan && currentPlan !== 'free' && paidDate) {
+            console.log('Syncing existing plan to backend:', currentPlan);
+            await syncPlanToBackend(currentPlan);
+            console.log('✅ Plan synced successfully!');
+            
+            // Also sync current usage
+            await syncUsageToBackend();
+            console.log('✅ Usage synced successfully!');
+            
+            alert(`✅ Your ${currentPlan} plan has been synced to the backend! It should now work on all devices.`);
+        } else {
+            console.log('No paid plan found to sync');
+            alert('No paid plan found to sync. You are currently on the free plan.');
+        }
+    } catch (error) {
+        console.error('Failed to sync plan:', error);
+        alert('❌ Failed to sync plan. Please try again.');
+    }
 }
 
 // Test function for the new pricing system
