@@ -90,18 +90,18 @@ const PLAN_LIMITS = {
         dailyQuizzes: 2 // Daily quiz limit for free users
     },
     basic: {
-        responses: 25,
-        readAnswers: 15, // Read answers available from basic plan
+        responses: 15,
+        readAnswers: 10, // Read answers available from basic plan
         notesGenerated: 10,
         imageSolutions: 5,
         nextQuiz: 5,
         refreshQuiz: 3,
         flashcards: 5,
-        dailyQuizzes: 10
+        dailyQuizzes: 6
     },
     standard: {
-        responses: 75,
-        readAnswers: 50,
+        responses: 55,
+        readAnswers: 30,
         notesGenerated: 25,
         imageSolutions: 15,
         nextQuiz: 15,
@@ -1293,7 +1293,7 @@ async function getResponse() {
           promptText += ` After your detailed explanation, provide a simpler, more concise explanation for easier understanding, clearly labeled "Simplified Version:".`;
       } else {
           // Show upgrade message for free/basic users
-          responseBox.innerHTML = `<div class="limit-message-box">✨ Simplify Answer is a Standard/Premium feature. <a href="#" onclick="openModal('upgradeModal')" style="color: #2563eb; text-decoration: underline;">Upgrade your plan</a> to access this feature.</div>`;
+          responseBox.innerHTML = `<div class="limit-message-box">✨ Simplify Answer is a Standard/Premium feature. <a href="#" onclick="showUpgradePrompt()" style="color: #2563eb; text-decoration: underline;">Upgrade your plan</a> to access this feature.</div>`;
           responseBox.style.display = 'block';
           return;
       }
@@ -1443,7 +1443,7 @@ function saveNotesAsPdf() {
   // Check if user has required plan for PDF export
   const userPlan = getUserPlan();
   if (userPlan === 'free' || userPlan === 'basic') {
-      notesBox.innerHTML = `<div class="limit-message-box">💾 Save Notes as PDF is a Standard/Premium feature. <a href="#" onclick="openModal('upgradeModal')" style="color: #2563eb; text-decoration: underline;">Upgrade your plan</a> to access this feature.</div>`;
+      notesBox.innerHTML = `<div class="limit-message-box">💾 Save Notes as PDF is a Standard/Premium feature. <a href="#" onclick="showUpgradePrompt()" style="color: #2563eb; text-decoration: underline;">Upgrade your plan</a> to access this feature.</div>`;
       notesBox.style.display = 'block';
       return;
   }
@@ -1899,7 +1899,7 @@ function speakAnswer() {
     // Check if user has required plan for read answers
     const userPlan = getUserPlan();
     if (userPlan === 'free') {
-        responseBox.innerHTML = `<div class="limit-message-box">🔊 Read Answer is a Basic/Standard/Premium feature. <a href="#" onclick="openModal('upgradeModal')" style="color: #2563eb; text-decoration: underline;">Upgrade your plan</a> to access this feature.</div>`;
+        responseBox.innerHTML = `<div class="limit-message-box">🔊 Read Answer is a Basic/Standard/Premium feature. <a href="#" onclick="showUpgradePrompt()" style="color: #2563eb; text-decoration: underline;">Upgrade your plan</a> to access this feature.</div>`;
         responseBox.style.display = 'block';
         updateSpeechControlButtons();
         return;
@@ -2348,9 +2348,52 @@ async function convertPdfToImage(pdfFile) {
 }
 
 function showUpgradePrompt() {
+    updateUpgradeModalContent();
     document.getElementById('upgradeModal').style.display = 'flex';
     // Prevent body scroll when modal is open
     document.body.style.overflow = 'hidden';
+}
+
+function updateUpgradeModalContent() {
+    const currentPlan = getUserPlan();
+    const planCards = document.querySelectorAll('.pricing-card');
+    
+    planCards.forEach(card => {
+        const planType = card.getAttribute('data-plan');
+        const button = card.querySelector('.plan-select-btn');
+        const cardElement = card;
+        
+        // Reset classes
+        cardElement.classList.remove('current-plan', 'upgrade-available');
+        
+        if (planType === currentPlan) {
+            // Mark as current plan
+            cardElement.classList.add('current-plan');
+            button.innerHTML = '✓ Current Plan';
+            button.style.background = '#10b981';
+            button.style.cursor = 'default';
+            button.onclick = null;
+            cardElement.onclick = null;
+        } else {
+            // Mark as upgrade available
+            cardElement.classList.add('upgrade-available');
+            button.innerHTML = `Select ${planType.charAt(0).toUpperCase() + planType.slice(1)}`;
+            button.style.cursor = 'pointer';
+            
+            // Restore original colors
+            if (planType === 'basic') {
+                button.style.background = '#6b7280';
+            } else if (planType === 'standard') {
+                button.style.background = '#3b82f6';
+            } else if (planType === 'premium') {
+                button.style.background = '#a78bfa';
+            }
+            
+            // Restore click functionality
+            button.onclick = () => selectPlan(planType);
+            cardElement.onclick = () => selectPlan(planType);
+        }
+    });
 }
 
 function closeUpgradeModal() {
@@ -2525,6 +2568,13 @@ function isPlusUser() {
 
 // Plan selection handler
 function selectPlan(planType) {
+    // Check if user is trying to select their current plan
+    const currentPlan = getUserPlan();
+    if (planType === currentPlan) {
+        alert(`You already have the ${planType.charAt(0).toUpperCase() + planType.slice(1)} plan!`);
+        return;
+    }
+    
     const planPrices = {
         basic: 499,    // GHS 4.99 in pesewas
         standard: 999, // GHS 9.99 in pesewas
@@ -2787,6 +2837,7 @@ function addPricingCardKeyboardSupport() {
 }
 
 function promptRenewPlan() {
+  updateUpgradeModalContent();
   document.getElementById('upgradeModal').style.display = 'flex';
   document.getElementById('response').innerHTML = `<div class="limit-message-box">Your subscription has expired. Please renew to continue enjoying your plan benefits.</div>`;
   document.getElementById('response').style.display = 'block';

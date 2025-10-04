@@ -1220,3 +1220,44 @@ select option {
   margin: 0;
   line-height: 1.5;
 }
+
+/* Current Plan Styling */
+.pricing-card.current-plan {
+  border: 2px solid #10b981 !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+  position: relative;
+}
+
+.pricing-card.current-plan::before {
+  content: "✓ CURRENT";
+  position: absolute;
+  top: -10px;
+  right: 10px;
+  background: #10b981;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.pricing-card.current-plan .plan-select-btn {
+  background: #10b981 !important;
+  color: white !important;
+  cursor: default !important;
+}
+
+.pricing-card.current-plan .plan-select-btn:hover {
+  transform: none !important;
+  background: #10b981 !important;
+}
+
+.pricing-card.upgrade-available {
+  opacity: 1;
+  cursor: pointer;
+}
+
+.pricing-card.upgrade-available:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
