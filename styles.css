@@ -390,27 +390,49 @@ select option {
     font-style: italic;
     padding: 20px;
 }
-#cameraStream video {
-    max-width: 100%;
-    border-radius: 8px;
-    margin-top: 10px;
+#cameraStream {
+    max-width: 400px;
+    width: 100%;
+    height: 300px;
+    border-radius: 12px;
+    margin: 10px auto;
     display: none;
+    object-fit: cover;
+    border: 2px solid #374151;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 .camera-buttons {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px;
-    margin-top: 10px;
+    gap: 12px;
+    margin-top: 15px;
+    padding: 0 10px;
 }
 .camera-buttons button {
     background-color: #60a5fa;
     color: white;
-    flex-grow: 1;
-    min-width: 100px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    min-width: 110px;
+    transition: all 0.2s ease;
 }
 .camera-buttons button:hover {
     background-color: #3b82f6;
+    transform: translateY(-1px);
+}
+.camera-buttons button.capture-btn {
+    background-color: #10b981;
+}
+.camera-buttons button.capture-btn:hover {
+    background-color: #059669;
+}
+.camera-buttons button.cancel-btn {
+    background-color: #ef4444;
+}
+.camera-buttons button.cancel-btn:hover {
+    background-color: #dc2626;
 }
 .clear-image-btn {
     background-color: #ef4444;

@@ -597,15 +597,22 @@
 
             <div id="imagePreviewContainer" style="display:none;">
                 <p class="placeholder-text" id="imagePlaceholder">No file selected. Use camera or file upload (images/PDFs).</p>
-                <img id="imagePreview" src="#" alt="Image Preview" style="display:none;">
-                <video id="cameraStream" autoplay muted style="display:none;"></video>
+                <img id="imagePreview" src="#" alt="Image Preview" style="display:none; max-width: 400px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                <video id="cameraStream" autoplay muted playsinline style="display:none;"></video>
                 <canvas id="cameraCanvas" style="display:none;"></canvas>
-                <div class="camera-buttons" style="display:none;">
-                    <button id="captureBtn" onclick="captureImage()">Capture Photo</button>
-                    <button id="retakeBtn" onclick="openCamera()">Retake</button>
-                    <button id="cancelCameraBtn" onclick="cancelCamera()">Cancel</button>
+                
+                <!-- Camera Controls -->
+                <div class="camera-buttons" id="cameraControls" style="display:none;">
+                    <button id="captureBtn" class="capture-btn" onclick="captureImage()">📸 Capture</button>
+                    <button id="cancelCameraBtn" class="cancel-btn" onclick="cancelCamera()">❌ Cancel</button>
                 </div>
-                <button class="clear-image-btn" id="clearImageBtn" onclick="clearImage()" style="display:none;">Clear Image</button>
+                
+                <!-- Image Controls (after capture) -->
+                <div class="camera-buttons" id="imageControls" style="display:none;">
+                    <button onclick="proceedWithSolution()" class="capture-btn">✅ Get Solution</button>
+                    <button onclick="openCamera()" class="cancel-btn">🔄 Retake</button>
+                    <button onclick="clearImage()" class="cancel-btn">🗑️ Clear</button>
+                </div>
             </div>
 
             <button id="solvePastQuestionBtn" onclick="solvePastQuestion()">🧠 Get Solution (from Image/PDF)</button>

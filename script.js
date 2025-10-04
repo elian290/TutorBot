@@ -2106,14 +2106,15 @@ async function openCamera() {
   const video = document.getElementById('cameraStream');
   const imagePreview = document.getElementById('imagePreview');
   const imagePlaceholder = document.getElementById('imagePlaceholder');
-  const cameraButtons = document.querySelector('.camera-buttons');
-  const clearImageBtn = document.getElementById('clearImageBtn');
+  const cameraControls = document.getElementById('cameraControls');
+  const imageControls = document.getElementById('imageControls');
 
+  // Reset all elements
   imagePreview.style.display = 'none';
   imagePlaceholder.style.display = 'none';
   video.style.display = 'block';
-  cameraButtons.style.display = 'flex';
-  clearImageBtn.style.display = 'none'; // Hide clear button when camera is active
+  cameraControls.style.display = 'flex';
+  imageControls.style.display = 'none';
   
   // Clear any previous solution
   solutionBox.style.display = 'none';
@@ -2133,7 +2134,7 @@ async function openCamera() {
       solutionBox.style.display = 'block';
 
       video.style.display = 'none';
-      cameraButtons.style.display = 'none';
+      cameraControls.style.display = 'none';
       imagePlaceholder.style.display = 'block';
       document.getElementById('imagePreviewContainer').style.display = 'block'; // Keep container visible to show placeholder
       setButtonsDisabled(false); // Re-enable other buttons
@@ -2147,8 +2148,8 @@ function captureImage() {
   const canvas = document.getElementById('cameraCanvas');
   const imagePreview = document.getElementById('imagePreview');
   const imagePlaceholder = document.getElementById('imagePlaceholder');
-  const cameraButtons = document.querySelector('.camera-buttons');
-  const clearImageBtn = document.getElementById('clearImageBtn');
+  const cameraControls = document.getElementById('cameraControls');
+  const imageControls = document.getElementById('imageControls');
 
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -2160,8 +2161,10 @@ function captureImage() {
       mediaStream.getTracks().forEach(track => track.stop());
       mediaStream = null;
   }
+  
+  // Hide camera, show captured image and controls
   video.style.display = 'none';
-  cameraButtons.style.display = 'none';
+  cameraControls.style.display = 'none';
 
   
   canvas.toBlob(async (blob) => {
@@ -2171,7 +2174,7 @@ function captureImage() {
       imagePreview.src = URL.createObjectURL(selectedImageFile);
       imagePreview.style.display = 'block';
       imagePlaceholder.style.display = 'none';
-      clearImageBtn.style.display = 'block';
+      imageControls.style.display = 'flex';
     
       // Re-enable file upload button
     document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
@@ -2190,7 +2193,8 @@ function captureImage() {
 function cancelCamera() {
   const video = document.getElementById('cameraStream');
   const imagePlaceholder = document.getElementById('imagePlaceholder');
-  const cameraButtons = document.querySelector('.camera-buttons');
+  const cameraControls = document.getElementById('cameraControls');
+  const imageControls = document.getElementById('imageControls');
   
   // Stop camera stream
   if (mediaStream) {
@@ -2199,11 +2203,22 @@ function cancelCamera() {
   }
   
   video.style.display = 'none';
-  cameraButtons.style.display = 'none';
+  cameraControls.style.display = 'none';
+  imageControls.style.display = 'none';
   imagePlaceholder.style.display = 'block';
   
   // Re-enable all buttons
   setButtonsDisabled(false);
+  document.querySelector('.image-input-controls button:nth-of-type(2)').disabled = false;
+}
+
+// New function to proceed with solution after image capture
+function proceedWithSolution() {
+  if (selectedImageFile) {
+    solvePastQuestion();
+  } else {
+    alert('No image captured. Please capture an image first.');
+  }
 }
 
 async function handleFileUpload(event) {
@@ -2273,7 +2288,8 @@ function clearImage() {
   document.getElementById('imagePreview').src = '#';
   document.getElementById('imagePreview').style.display = 'none';
   document.getElementById('imagePlaceholder').style.display = 'block';
-  document.getElementById('clearImageBtn').style.display = 'none';
+  document.getElementById('imageControls').style.display = 'none';
+  document.getElementById('cameraControls').style.display = 'none';
   document.getElementById('past-question-solution-box').style.display = 'none'; // Clear previous solution/message
   // Re-enable camera and file upload buttons
   document.querySelector('.image-input-controls button:nth-of-type(1)').disabled = false; // Camera button
