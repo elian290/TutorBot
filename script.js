@@ -935,12 +935,45 @@ function goBackToSignup() {
 }
 
 async function verifyAndSignup() {
+  // Get the verify button and disable it immediately
+  const verifyBtn = document.querySelector('button[onclick*="verifyAndSignup"]') || 
+                   document.querySelector('.verification-form .continue-btn');
+  
+  // Disable button immediately
+  if (verifyBtn) {
+    verifyBtn.disabled = true;
+    verifyBtn.style.opacity = '0.6';
+    verifyBtn.style.cursor = 'not-allowed';
+    verifyBtn.textContent = 'Verifying...';
+  }
+  
   const code = document.getElementById('verificationCode').value.trim();
   
   if (!code || code.length !== 6) {
-    alert('Please enter a valid 6-digit verification code');
+    showToast('Please enter a valid 6-digit verification code', { 
+      duration: 3000, 
+      type: 'error',
+      backgroundColor: '#ef4444',
+      textColor: '#ffffff'
+    });
+    
+    // Re-enable button on validation error
+    if (verifyBtn) {
+      verifyBtn.disabled = false;
+      verifyBtn.style.opacity = '1';
+      verifyBtn.style.cursor = 'pointer';
+      verifyBtn.textContent = 'Verify & Sign Up';
+    }
     return;
   }
+  
+  // Show loading toast
+  showToast('Verifying your code...', { 
+    duration: 8000, 
+    type: 'loading',
+    backgroundColor: '#2563eb',
+    textColor: '#ffffff'
+  });
   
   try {
     // Verify the code
@@ -959,10 +992,17 @@ async function verifyAndSignup() {
     
     if (verifyResponse.ok) {
       // Code verified, proceed with Firebase signup
-      // Use the stored password instead of trying to get it from the hidden form
       const password = storedPassword;
       
-      // Show loading message
+      // Show success toast for verification
+      showToast('Code verified! Creating your account...', { 
+        duration: 3000, 
+        type: 'success',
+        backgroundColor: '#10b981',
+        textColor: '#ffffff'
+      });
+      
+      // Show loading message in form
       const verificationForm = document.querySelector('.verification-form');
       if (verificationForm) {
         verificationForm.innerHTML = `
@@ -977,18 +1017,61 @@ async function verifyAndSignup() {
         .then(() => {
           localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
           localStorage.removeItem('guestMode');
+          
+          // Reset plan to free for new account
+          localStorage.removeItem('tutorbotPlan');
+          localStorage.removeItem('tutorbotPaidDate');
+          
+          showToast('Account created successfully! Welcome to TutorBot!', { 
+            duration: 3000, 
+            type: 'success',
+            backgroundColor: '#10b981',
+            textColor: '#ffffff'
+          });
+          
           goToScreen('courseScreen');
         })
         .catch(error => {
-          alert('Signup failed: ' + error.message);
+          showToast('Signup failed: ' + error.message, { 
+            duration: 4000, 
+            type: 'error',
+            backgroundColor: '#ef4444',
+            textColor: '#ffffff'
+          });
           goBackToSignup();
         });
     } else {
-      alert(verifyData.error || 'Invalid verification code');
+      showToast(verifyData.error || 'Invalid verification code', { 
+        duration: 4000, 
+        type: 'error',
+        backgroundColor: '#ef4444',
+        textColor: '#ffffff'
+      });
+      
+      // Re-enable button on error
+      if (verifyBtn) {
+        verifyBtn.disabled = false;
+        verifyBtn.style.opacity = '1';
+        verifyBtn.style.cursor = 'pointer';
+        verifyBtn.textContent = 'Verify & Sign Up';
+      }
     }
   } catch (error) {
     console.error('Error verifying code:', error);
-    alert('Failed to verify code. Please try again.');
+    showToast('Failed to verify code. Please try again.', { 
+      duration: 4000, 
+      type: 'error',
+      backgroundColor: '#ef4444',
+      textColor: '#ffffff'
+    });
+    
+    // Re-enable button on error
+    if (verifyBtn) {
+      verifyBtn.disabled = false;
+      verifyBtn.style.opacity = '1';
+      verifyBtn.style.cursor = 'pointer';
+      verifyBtn.textContent = 'Verify & Sign Up';
+    }
   }
 }
 
@@ -1040,6 +1123,10 @@ async function loginUser() {
       
       // Clear guest mode when user signs in
       localStorage.removeItem('guestMode');
+      
+      // Reset plan to free for login (will be loaded from backend if user has paid plan)
+      localStorage.removeItem('tutorbotPlan');
+      localStorage.removeItem('tutorbotPaidDate');
       
       // Clear any previously cached profile for other users
       try {
@@ -1242,8 +1329,48 @@ async function loadUserData() {
 
 async function startTutorBot() {
   console.log('startTutorBot called');
+  
+  // Get the continue button and disable it immediately
+  const continueBtn = document.querySelector('#courseScreen button[onclick*="startTutorBot"]') || 
+                     document.querySelector('#courseScreen .continue-btn') ||
+                     document.querySelector('#courseScreen button[type="submit"]');
+  
+  // Disable button immediately
+  if (continueBtn) {
+    continueBtn.disabled = true;
+    continueBtn.style.opacity = '0.6';
+    continueBtn.style.cursor = 'not-allowed';
+    continueBtn.textContent = 'Setting up...';
+  }
+  
   const course = document.getElementById('courseSelect').value;
   console.log('Selected course:', course);
+  
+  if (!course) {
+    showToast('Please select a course to continue', { 
+      duration: 3000, 
+      type: 'error',
+      backgroundColor: '#ef4444',
+      textColor: '#ffffff'
+    });
+    
+    // Re-enable button on validation error
+    if (continueBtn) {
+      continueBtn.disabled = false;
+      continueBtn.style.opacity = '1';
+      continueBtn.style.cursor = 'pointer';
+      continueBtn.textContent = 'Continue';
+    }
+    return;
+  }
+  
+  // Show loading toast
+  showToast('Setting up your course...', { 
+    duration: 6000, 
+    type: 'loading',
+    backgroundColor: '#2563eb',
+    textColor: '#ffffff'
+  });
   
   // Store course selection on backend
   try {
@@ -1272,10 +1399,15 @@ async function startTutorBot() {
     // For guest users, store course selection locally and go directly to chatbot
     console.log('Guest mode: storing course selection and going to chatbot');
     localStorage.setItem('tutorbotCourse', course);
+    
+    showToast('Course selected! Welcome to TutorBot (Guest Mode)', { 
+      duration: 3000, 
+      type: 'success',
+      backgroundColor: '#10b981',
+      textColor: '#ffffff'
+    });
+    
     goToScreen('chatbotScreen');
-    if (typeof showToast === 'function') {
-      showToast('Guest mode: Course selected. Only Ask TutorBot is available.');
-    }
     return;
   }
   
@@ -1285,6 +1417,14 @@ async function startTutorBot() {
     if (userProfile && userProfile.username && userProfile.course) {
       console.log('User has complete profile, going to chatbot');
       renderProfileHeader(userProfile);
+      
+      showToast('Course selected! Welcome back to TutorBot!', { 
+        duration: 3000, 
+        type: 'success',
+        backgroundColor: '#10b981',
+        textColor: '#ffffff'
+      });
+      
       goToScreen('chatbotScreen');
       await loadUserData();
       return;
@@ -1295,6 +1435,14 @@ async function startTutorBot() {
   
   // If no complete profile, go to profile setup
   console.log('No complete profile found, going to profile setup');
+  
+  showToast('Course selected! Please complete your profile.', { 
+    duration: 3000, 
+    type: 'success',
+    backgroundColor: '#10b981',
+    textColor: '#ffffff'
+  });
+  
   goToScreen('profileScreen');
   initializeProfileSetup();
 }
