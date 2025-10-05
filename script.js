@@ -774,18 +774,53 @@ let verificationCode = '';
 let storedPassword = '';
 
 async function sendVerificationCode() {
+  // Get the signup button and disable it immediately to prevent double clicks
+  const signupBtn = document.querySelector('#signupScreen button[onclick*="sendVerificationCode"], #signupScreen button[onclick*="validateSignup"]') || 
+                   document.querySelector('#signupScreen .continue-btn') ||
+                   document.querySelector('#signupScreen button[type="submit"]');
+  
+  // Disable button immediately
+  if (signupBtn) {
+    signupBtn.disabled = true;
+    signupBtn.style.opacity = '0.6';
+    signupBtn.style.cursor = 'not-allowed';
+    signupBtn.textContent = 'Creating Account...';
+  }
+  
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value.trim();
   
   if (!email || !password) {
     alert('Please fill in both email and password');
+    // Re-enable button if validation fails
+    if (signupBtn) {
+      signupBtn.disabled = false;
+      signupBtn.style.opacity = '1';
+      signupBtn.style.cursor = 'pointer';
+      signupBtn.textContent = 'Next';
+    }
     return;
   }
   
   if (password.length < 6) {
     alert('Password must be at least 6 characters');
+    // Re-enable button if validation fails
+    if (signupBtn) {
+      signupBtn.disabled = false;
+      signupBtn.style.opacity = '1';
+      signupBtn.style.cursor = 'pointer';
+      signupBtn.textContent = 'Next';
+    }
     return;
   }
+  
+  // Show loading toast notification
+  showToast('Creating your account...', { 
+    duration: 8000, 
+    type: 'loading',
+    backgroundColor: '#2563eb',
+    textColor: '#ffffff'
+  });
   
   try {
     const response = await fetch(`${BACKEND_URL}/api/email-verification/send-verification`, {
@@ -805,15 +840,50 @@ async function sendVerificationCode() {
     if (response.ok) {
       verificationEmail = email;
       storedPassword = password; // Store the password
-      // Show verification code input
+      
+      // Show success toast
+      showToast('Verification code sent! Check your email.', { 
+        duration: 3000, 
+        type: 'success',
+        backgroundColor: '#10b981',
+        textColor: '#ffffff'
+      });
+      
+      // Show verification code input (button will be hidden with the form)
       showVerificationStep();
     } else {
       console.error('Error response:', data);
-      alert(data.error || 'Failed to send verification code');
+      showToast(data.error || 'Failed to send verification code', { 
+        duration: 4000, 
+        type: 'error',
+        backgroundColor: '#ef4444',
+        textColor: '#ffffff'
+      });
+      
+      // Re-enable button on error
+      if (signupBtn) {
+        signupBtn.disabled = false;
+        signupBtn.style.opacity = '1';
+        signupBtn.style.cursor = 'pointer';
+        signupBtn.textContent = 'Next';
+      }
     }
   } catch (error) {
     console.error('Error sending verification code:', error);
-    alert('Failed to send verification code. Please try again.');
+    showToast('Failed to send verification code. Please try again.', { 
+      duration: 4000, 
+      type: 'error',
+      backgroundColor: '#ef4444',
+      textColor: '#ffffff'
+    });
+    
+    // Re-enable button on error
+    if (signupBtn) {
+      signupBtn.disabled = false;
+      signupBtn.style.opacity = '1';
+      signupBtn.style.cursor = 'pointer';
+      signupBtn.textContent = 'Next';
+    }
   }
 }
 
