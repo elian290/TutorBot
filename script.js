@@ -905,8 +905,7 @@ function showVerificationStep() {
       <input type="text" id="verificationCode" placeholder="Enter 6-digit code" maxlength="6" style="width: 100%; padding: 15px; margin: 20px 0; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 18px; text-align: center; letter-spacing: 3px;">
       
       <button onclick="verifyAndSignup()" class="continue-btn" style="width: 100%; padding: 15px; margin: 10px 0; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">Verify & Sign Up</button>
-      
-      <button onclick="goBackToSignup()" class="back-btn" style="width: 100%; padding: 15px; margin: 10px 0; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">← Back to Signup</button>
+    
     </div>
   `;
   
@@ -998,8 +997,43 @@ function validateSignup() {
   sendVerificationCode();
 }
 async function loginUser() {
+    // Get the login button and disable it immediately to prevent double clicks
+    const loginBtn = document.querySelector('#loginScreen button[onclick*="loginUser"]') || 
+                    document.querySelector('#loginScreen .continue-btn') ||
+                    document.querySelector('#loginScreen button[type="submit"]');
+    
+    // Disable button immediately
+    if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.style.opacity = '0.6';
+        loginBtn.style.cursor = 'not-allowed';
+        loginBtn.textContent = 'Logging in...';
+    }
+    
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
+    
+    // Validate inputs
+    if (!email || !password) {
+        document.getElementById('loginError').innerText = 'Please fill in both email and password';
+        // Re-enable button if validation fails
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.style.opacity = '1';
+            loginBtn.style.cursor = 'pointer';
+            loginBtn.textContent = 'Login';
+        }
+        return;
+    }
+    
+    // Show loading toast notification
+    showToast('Logging you in...', { 
+        duration: 8000, 
+        type: 'loading',
+        backgroundColor: '#2563eb',
+        textColor: '#ffffff'
+    });
+    
     try {
       await auth.signInWithEmailAndPassword(email, password);
       localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
@@ -1042,6 +1076,14 @@ async function loginUser() {
           await loadPlanFromBackend();
           await loadUsageFromBackend();
           
+          // Show success toast
+          showToast('Login successful! Welcome back.', { 
+            duration: 2000, 
+            type: 'success',
+            backgroundColor: '#10b981',
+            textColor: '#ffffff'
+          });
+          
           goToScreen('chatbotScreen');
           await loadUserData();
           return;
@@ -1052,9 +1094,34 @@ async function loginUser() {
       
       // If no complete profile, go to course selection
       console.log('No complete profile found, going to course selection');
+      
+      // Show success toast for partial profile
+      showToast('Login successful! Please complete your profile.', { 
+        duration: 3000, 
+        type: 'success',
+        backgroundColor: '#10b981',
+        textColor: '#ffffff'
+      });
+      
       goToScreen('courseScreen');
     } catch (error) {
       document.getElementById('loginError').innerText = error.message;
+      
+      // Show error toast
+      showToast('Login failed: ' + error.message, { 
+        duration: 4000, 
+        type: 'error',
+        backgroundColor: '#ef4444',
+        textColor: '#ffffff'
+      });
+      
+      // Re-enable button on error
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.style.opacity = '1';
+        loginBtn.style.cursor = 'pointer';
+        loginBtn.textContent = 'Login';
+      }
     }
 }
 
