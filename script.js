@@ -1018,9 +1018,11 @@ async function verifyAndSignup() {
           localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
           localStorage.removeItem('guestMode');
           
-          // Reset plan to free for new account
+          // Reset plan data for brand new account
           localStorage.removeItem('tutorbotPlan');
           localStorage.removeItem('tutorbotPaidDate');
+          localStorage.removeItem('tutorbotPlus');
+          localStorage.removeItem('tutorbotPlusPaidDate');
           
           showToast('Account created successfully! Welcome to TutorBot!', { 
             duration: 3000, 
@@ -1119,14 +1121,22 @@ async function loginUser() {
     
     try {
       await auth.signInWithEmailAndPassword(email, password);
-      localStorage.setItem('tutorbotUserEmail', auth.currentUser.email);
+      const currentUserEmail = auth.currentUser.email;
+      const previousUserEmail = localStorage.getItem('tutorbotUserEmail');
+      
+      localStorage.setItem('tutorbotUserEmail', currentUserEmail);
       
       // Clear guest mode when user signs in
       localStorage.removeItem('guestMode');
       
-      // Reset plan to free for login (will be loaded from backend if user has paid plan)
-      localStorage.removeItem('tutorbotPlan');
-      localStorage.removeItem('tutorbotPaidDate');
+      // Only reset plan if switching to a different user account
+      if (previousUserEmail && previousUserEmail !== currentUserEmail) {
+        console.log('Different user logging in, resetting plan data');
+        localStorage.removeItem('tutorbotPlan');
+        localStorage.removeItem('tutorbotPaidDate');
+        localStorage.removeItem('tutorbotPlus');
+        localStorage.removeItem('tutorbotPlusPaidDate');
+      }
       
       // Clear any previously cached profile for other users
       try {
@@ -3328,25 +3338,27 @@ async function manualSyncPlanToBackend() {
     }
 }
 
-// Emergency function to restore Basic plan
+// Function to restore plan from backend
 async function restoreBasicPlan() {
     try {
-        console.log('Restoring Basic plan...');
+        console.log('Restoring plan from backend...');
         
-        // Set Basic plan with current timestamp
-        const paidDate = Date.now();
-        localStorage.setItem('tutorbotPlan', 'basic');
-        localStorage.setItem('tutorbotPaidDate', paidDate.toString());
+        // Clear local plan data first
+        localStorage.removeItem('tutorbotPlan');
+        localStorage.removeItem('tutorbotPaidDate');
+        localStorage.removeItem('tutorbotPlus');
+        localStorage.removeItem('tutorbotPlusPaidDate');
         
-        // Sync to backend
-        await syncPlanToBackend('basic');
-        console.log('✅ Basic plan restored and synced!');
+        // Load plan from backend
+        const restoredPlan = await loadPlanFromBackend();
         
-        // Also sync current usage
-        await syncUsageToBackend();
-        console.log('✅ Usage synced successfully!');
-        
-        alert('✅ Your Basic plan has been restored and synced to all devices! Please refresh the page to see the changes.');
+        if (restoredPlan) {
+            console.log('✅ Plan restored from backend:', restoredPlan);
+            alert(`✅ Your ${restoredPlan.charAt(0).toUpperCase() + restoredPlan.slice(1)} plan has been restored! Please refresh the page to see the changes.`);
+        } else {
+            console.log('No paid plan found on backend');
+            alert('No paid plan found on your account. You are currently on the free plan.');
+        }
         
         // Refresh the page to show updated plan
         setTimeout(() => {
@@ -3354,41 +3366,12 @@ async function restoreBasicPlan() {
         }, 2000);
         
     } catch (error) {
-        console.error('Failed to restore Basic plan:', error);
-        alert('❌ Failed to restore Basic plan. Please try again.');
+        console.error('Failed to restore plan:', error);
+        alert('❌ Failed to restore plan. Please try again.');
     }
 }
 
-// Function to clear all plan data and reset to free
-async function resetToFreePlan() {
-    try {
-        console.log('Resetting to free plan...');
-        
-        // Clear local storage
-        localStorage.removeItem('tutorbotPlan');
-        localStorage.removeItem('tutorbotPaidDate');
-        localStorage.removeItem('tutorbotPlus');
-        localStorage.removeItem('tutorbotPlusPaidDate');
-        
-        // Set to free plan
-        localStorage.setItem('tutorbotPlan', 'free');
-        
-        // Sync free plan to backend
-        await syncPlanToBackend('free');
-        console.log('✅ Reset to free plan and synced!');
-        
-        alert('✅ Account has been reset to free plan and synced! Please refresh the page.');
-        
-        // Refresh the page
-        setTimeout(() => {
-            window.location.reload();
-        }, 2000);
-        
-    } catch (error) {
-        console.error('Failed to reset to free plan:', error);
-        alert('❌ Failed to reset plan. Please try again.');
-    }
-}
+// Function removed - automatic plan management handles this
 
 // Debug function to check current user and plan
 async function debugPlanInfo() {
