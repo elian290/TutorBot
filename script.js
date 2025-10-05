@@ -3192,7 +3192,7 @@ async function syncPlanToBackend(planType) {
         const token = await getAuthToken();
         if (!token) return;
         
-        const response = await fetch(`${BACKEND_URL}/api/userdata/plan`, {
+        const response = await fetch(`${BACKEND_URL}/api/user-data/plan`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -3217,17 +3217,25 @@ async function syncPlanToBackend(planType) {
 async function loadPlanFromBackend() {
     try {
         const token = await getAuthToken();
-        if (!token) return null;
+        if (!token) {
+            console.log('No auth token available');
+            return null;
+        }
         
-        const response = await fetch(`${BACKEND_URL}/api/userdata/plan`, {
+        console.log('Loading plan from backend...');
+        const response = await fetch(`${BACKEND_URL}/api/user-data/plan`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         
+        console.log('Plan API response status:', response.status);
+        
         if (response.ok) {
             const data = await response.json();
+            console.log('Plan API response data:', data);
+            
             if (data.plan && data.paidDate) {
                 // Update local storage with backend data
                 localStorage.setItem('tutorbotPlan', data.plan);
@@ -3241,7 +3249,13 @@ async function loadPlanFromBackend() {
                 
                 console.log('Plan loaded from backend:', data.plan);
                 return data.plan;
+            } else {
+                console.log('No plan data in response or missing fields:', data);
             }
+        } else {
+            console.log('Plan API request failed:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.log('Error response:', errorText);
         }
     } catch (error) {
         console.log('Failed to load plan from backend:', error);
@@ -3255,7 +3269,7 @@ async function syncUsageToBackend() {
         const token = await getAuthToken();
         if (!token) return;
         
-        const response = await fetch(`${BACKEND_URL}/api/userdata/usage`, {
+        const response = await fetch(`${BACKEND_URL}/api/user-data/usage`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -3281,7 +3295,7 @@ async function loadUsageFromBackend() {
         const token = await getAuthToken();
         if (!token) return null;
         
-        const response = await fetch(`${BACKEND_URL}/api/userdata/usage`, {
+        const response = await fetch(`${BACKEND_URL}/api/user-data/usage`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
