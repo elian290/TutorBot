@@ -51,7 +51,6 @@ const PROFILE_KEY = 'tutorbotProfile';
 const USERNAME_CHANGES_KEY = 'tutorbotUsernameChanges';
 const XP_KEY = 'tutorbotXP';
 const LEVEL_KEY = 'tutorbotLevel';
-
 function getUserScopedKey(baseKey) {
   try {
     const user = auth && auth.currentUser;
@@ -62,8 +61,16 @@ function getUserScopedKey(baseKey) {
   }
 }
 
-// Backend API URL
+// Global variables for speech synthesis
+let dailyUsage;
+
+// Backend URL
 const BACKEND_URL = 'https://tutorbot-backend.onrender.com';
+
+// Mobile detection function
+function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
 
 // --- Daily Usage Limits (Free Plan) ---
 const DAILY_LIMITS = {
@@ -121,7 +128,8 @@ const PLAN_LIMITS = {
     }
 };
 
-let dailyUsage = {
+// Initialize dailyUsage object
+dailyUsage = {
     responses: 0,
     readAnswers: 0,
     notesGenerated: 0,
@@ -1880,7 +1888,7 @@ function updateSpeechControlButtons() {
   }
 
   // Check if mobile device
-  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isMobile = isMobileDevice();
 
   if (isMobile) {
       // On mobile: only show speak button, never show pause/resume
@@ -1945,7 +1953,7 @@ function speakAnswer() {
     speechUtterance = new SpeechSynthesisUtterance(answerText);
     
     // Mobile-specific settings
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobile = isMobileDevice();
     if (isMobile) {
         speechUtterance.rate = 0.8; // Slower for mobile
         speechUtterance.pitch = 1.0;
@@ -1972,9 +1980,13 @@ function speakAnswer() {
         speechUtterance = null;
         speechText = '';
         
-        // Mobile-specific error handling
+        // Better error handling for mobile
         if (isMobile) {
-            responseBox.innerHTML = `<div class="limit-message-box">Speech may not work on mobile. Try on desktop for better experience.</div>`;
+            if (event.error === 'network' || event.error === 'synthesis-failed') {
+                responseBox.innerHTML = `<div class="limit-message-box">📱 Speech failed on mobile. Try tapping the speak button again or check your internet connection.</div>`;
+            } else {
+                responseBox.innerHTML = `<div class="limit-message-box">📱 Speech error on mobile: ${event.error}. You can still read the text above.</div>`;
+            }
         } else {
             responseBox.innerHTML = `<div class="limit-message-box">Speech playback error: ${event.error}.</div>`;
         }
@@ -1998,18 +2010,15 @@ function speakAnswer() {
     } catch (error) {
         console.error('Speech synthesis failed:', error);
         if (isMobile) {
-            responseBox.innerHTML = `<div class="limit-message-box">Speech not available on mobile. Use desktop for full features.</div>`;
+            responseBox.innerHTML = `<div class="limit-message-box">📱 Speech not available right now. You can still read the answer above. Try refreshing the page or using a different browser.</div>`;
         } else {
             responseBox.innerHTML = `<div class="limit-message-box">Speech synthesis not available on this device.</div>`;
         }
         responseBox.style.display = 'block';
+        updateSpeechControlButtons();
     }
-}
-
-function pauseSpeech() {
     // Disable pause on mobile devices
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobile) {
+    if (isMobileDevice()) {
         console.log('Pause not available on mobile');
         return;
     }
@@ -2022,8 +2031,7 @@ function pauseSpeech() {
 
 function resumeSpeech() {
     // Disable resume on mobile devices
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobile) {
+    if (isMobileDevice()) {
         console.log('Resume not available on mobile');
         return;
     }
