@@ -642,10 +642,26 @@ async function validateAndSaveUsername(username, avatar, course) {
     
     // Save complete profile to backend
     try {
-      await saveCompleteProfile(username, avatar, course);
-      console.log('Profile saved successfully');
+      const result = await saveCompleteProfile(username, avatar, course);
+      if (result.savedLocally) {
+        console.log('Profile saved locally (backend unavailable)');
+        showToast('Profile saved locally. Some features may be limited.', { 
+          duration: 4000, 
+          type: 'warning',
+          backgroundColor: '#f59e0b',
+          textColor: '#ffffff'
+        });
+      } else {
+        console.log('Profile saved successfully to backend');
+      }
     } catch (error) {
       console.warn('Failed to save complete profile:', error);
+      showToast('Profile saved locally. Backend sync failed.', { 
+        duration: 3000, 
+        type: 'warning',
+        backgroundColor: '#f59e0b',
+        textColor: '#ffffff'
+      });
     }
     
     // Set up subjects for the selected course
@@ -1281,19 +1297,63 @@ async function loadUserProfile() {
   }
 }
 
+// Helper function to compress images
+async function compressImage(dataUrl, quality = 0.7, maxWidth = 256, maxHeight = 256) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      // Calculate new dimensions
+      let { width, height } = img;
+      if (width > height) {
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = (width * maxHeight) / height;
+          height = maxHeight;
+        }
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Draw and compress
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressedDataUrl);
+    };
+    
+    img.src = dataUrl;
+  });
+}
+
 async function saveCompleteProfile(username, avatar, course) {
   try {
     const token = await getAuthToken();
     const level = getStoredLevel() || 1;
     const xp = getStoredXP() || 0;
     
+    // Compress avatar if it's too large (base64 images)
+    let compressedAvatar = avatar;
+    if (avatar && avatar.startsWith('data:image/') && avatar.length > 100000) { // If larger than ~100KB
+      console.log('Avatar too large, compressing...');
+      compressedAvatar = await compressImage(avatar, 0.7, 256, 256); // Compress to max 256x256
+    }
+    
     const profileData = {
       username,
-      avatar,
+      avatar: compressedAvatar,
       course,
       level,
       xp
     };
+    
+    console.log('Saving profile to backend, avatar size:', compressedAvatar ? compressedAvatar.length : 0);
     
     const response = await fetch(`${BACKEND_URL}/api/user-data/complete-profile`, {
       method: 'POST',
@@ -1305,7 +1365,14 @@ async function saveCompleteProfile(username, avatar, course) {
     });
     
     if (!response.ok) {
-      throw new Error('Failed to save complete profile');
+      if (response.status === 413) {
+        console.warn('Profile data too large for backend, saving locally only');
+        // Save locally and continue
+        const profile = { username, avatar, level, xp, course, usernameChanges: getStoredUsernameChanges() || 0 };
+        setStoredProfile(profile);
+        return { success: true, savedLocally: true };
+      }
+      throw new Error(`Failed to save complete profile: ${response.status} ${response.statusText}`);
     }
     
     console.log('Complete profile saved to backend');
@@ -1320,7 +1387,10 @@ async function saveCompleteProfile(username, avatar, course) {
     // Fallback to local save
     const profile = { username, avatar, level: getStoredLevel() || 1, xp: getStoredXP() || 0, course, usernameChanges: getStoredUsernameChanges() || 0 };
     setStoredProfile(profile);
-    throw error;
+    
+    // Don't throw error if we can save locally
+    console.log('Profile saved locally as fallback');
+    return { success: true, savedLocally: true };
   }
 }
 
